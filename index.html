@@ -764,5 +764,388 @@
         function showRegister() { document.getElementById('loginScreen').style.display = 'none'; document.getElementById('registerScreen').style.display = 'flex'; }
         function showLogin() { document.getElementById('registerScreen').style.display = 'none'; document.getElementById('loginScreen').style.display = 'flex'; }
     </script>
+        <script>
+        // ১. ম্যানুয়াল ডেটা সিঙ্ক বাটন যুক্ত করা
+        document.addEventListener("DOMContentLoaded", () => {
+            const adminBody = document.querySelector("#adminModal .modal-body");
+            if(adminBody && !document.getElementById('manualSyncBtn')) {
+                const syncBtnHTML = `<button id="manualSyncBtn" onclick="manualSyncData()" style="width:100%; background:linear-gradient(135deg, #3b82f6, #1e3a8a); color:white; padding:12px; border:1px solid gold; border-radius:30px; margin-bottom:15px; font-weight:bold; cursor:pointer; box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);"><i class="fas fa-sync-alt"></i> ম্যানুয়াল ডেটা সিঙ্ক করুন</button>`;
+                adminBody.insertAdjacentHTML('afterbegin', syncBtnHTML);
+            }
+        });
+
+        // ২. ডেটা সিঙ্ক ফাংশন
+        window.manualSyncData = async () => {
+            showToast('ডেটা সিঙ্ক হচ্ছে...');
+            try {
+                if (currentUser) {
+                    const userDoc = await db.collection('users').doc(currentUser.uid).get();
+                    if (userDoc.exists) {
+                        currentUser = userDoc.data();
+                        currentUser.uid = userDoc.id;
+                        updateUI();
+                    }
+                }
+                if(document.getElementById('adminModal').classList.contains('show')) {
+                    await loadAdminUserList(document.getElementById('adminSearchUser')?.value);
+                }
+                showToast('সমস্ত ডেটা সফলভাবে সিঙ্ক হয়েছে!');
+            } catch (error) {
+                showToast('সিঙ্ক করতে ব্যর্থ হয়েছে!');
+            }
+        };
+
+        // ৩. আপগ্রেডেড ইউজার লিস্ট লোড ফাংশন (যেখানে ডিলিট, ব্লক এবং সব আইডি দেখা যাবে)
+        window.loadAdminUserList = async (search='') => {
+            const snap = await db.collection('users').get();
+            let users = [];
+            snap.forEach(doc => {
+                const d = doc.data();
+                // সার্চের লজিক উন্নত করা হলো
+                const matchSearch = !search || 
+                                    (d.fullname && d.fullname.toLowerCase().includes(search.toLowerCase())) || 
+                                    (d.username && d.username.toLowerCase().includes(search.toLowerCase()));
+                
+                if(!d.isAdmin && matchSearch) {
+                    users.push({...d, uid: doc.id});
+                }
+            });
+
+            const container = document.getElementById('adminUserList');
+            container.innerHTML = users.map(u => {
+                const isBlocked = u.isBlocked ? true : false;
+                const blockText = isBlocked ? "আনব্লক করুন" : "স্থগিত করুন";
+                const blockColor = isBlocked ? "#28a745" : "#ff9800"; 
+                const borderCol = isBlocked ? "red" : "gold";
+
+                return `<div style="background:#1a1a1f; margin-bottom:15px; padding:15px; border-radius:15px; border:1px solid ${borderCol}; opacity:${isBlocked ? '0.7' : '1'}; transition: 0.3s;">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; border-bottom:1px solid #333; padding-bottom:10px;">
+                        <div>
+                            <strong style="color:${isBlocked ? 'red' : 'white'}; font-size:16px;">${u.fullname}</strong> <br>
+                            <span style="color:#aaa; font-size:13px;">@${u.username}</span><br>
+                            <span style="font-size:12px; color:gold;">₹${u.wallet} | ${u.points?.total || 0} পয়েন্ট</span>
+                        </div>
+                        <div style="display:flex; flex-direction:column; gap:8px;">
+                            <button onclick="adminToggleBlock('${u.uid}', ${isBlocked})" style="background:${blockColor}; color:white; border:none; border-radius:8px; padding:6px 10px; font-size:12px; cursor:pointer; font-weight:bold;">
+                                <i class="fas ${isBlocked ? 'fa-check-circle' : 'fa-ban'}"></i> ${blockText}
+                            </button>
+                            <button onclick="adminDeleteUser('${u.uid}')" style="background:#dc3545; color:white; border:none; border-radius:8px; padding:6px 10px; font-size:12px; cursor:pointer; font-weight:bold;">
+                                <i class="fas fa-trash-alt"></i> ডিলিট
+                            </button>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; flex-direction:column; gap:10px;">
+                        <div style="display:flex; gap:5px; align-items:center;">
+                            <span style="color:gray; font-size:12px; width:45px;">টাকা:</span>
+                            <input id="amt_${u.uid}" type="number" placeholder="₹" style="background:#111; border:1px solid gold; border-radius:15px; padding:8px; width:70px; color:white; outline:none;">
+                            <button onclick="adminModifyMoney('${u.uid}','add')" style="background:gold; color:black; border:none; border-radius:15px; padding:8px 12px; cursor:pointer; font-weight:bold;">+ যুক্ত</button>
+                            <button onclick="adminModifyMoney('${u.uid}','sub')" style="background:#dc3545; color:white; border:none; border-radius:15px; padding:8px 12px; cursor:pointer; font-weight:bold;">- কাটুন</button>
+                        </div>
+                        <div style="display:flex; gap:5px; align-items:center;">
+                            <span style="color:gray; font-size:12px; width:45px;">পয়েন্ট:</span>
+                            <input id="pt_${u.uid}" type="number" placeholder="Pt" style="background:#111; border:1px solid gold; border-radius:15px; padding:8px; width:70px; color:white; outline:none;">
+                            <button onclick="adminModifyPoints('${u.uid}','add')" style="background:gold; color:black; border:none; border-radius:15px; padding:8px 12px; cursor:pointer; font-weight:bold;">+ যুক্ত</button>
+                            <button onclick="adminModifyPoints('${u.uid}','sub')" style="background:#dc3545; color:white; border:none; border-radius:15px; padding:8px 12px; cursor:pointer; font-weight:bold;">- কাটুন</button>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+            
+            if(users.length === 0) {
+                container.innerHTML = '<div style="text-align:center; padding:20px; color:gray;">কোনো ইউজার পাওয়া যায়নি</div>';
+            }
+        };
+
+        // ৪. ইউজার ব্লক/আনব্লক ফাংশন
+        window.adminToggleBlock = async (uid, currentStatus) => {
+            const actionText = currentStatus ? "আনব্লক" : "স্থগিত (Block)";
+            if(!confirm(`আপনি কি নিশ্চিতভাবে এই আইডিটি ${actionText} করতে চান?`)) return;
+            try {
+                await db.collection('users').doc(uid).update({ isBlocked: !currentStatus });
+                showToast(`ইউজার আইডি ${actionText} করা হয়েছে`);
+                loadAdminUserList(document.getElementById('adminSearchUser')?.value);
+            } catch (error) {
+                showToast('অ্যাকশন সম্পূর্ণ করতে সমস্যা হয়েছে!');
+            }
+        };
+
+        // ৫. ইউজার ডিলিট ফাংশন
+        window.adminDeleteUser = async (uid) => {
+            if(!confirm("সতর্কতা: আপনি কি স্থায়ীভাবে এই আইডি ডিলিট করতে চান? এই ডেটা আর ফিরে পাওয়া যাবে না!")) return;
+            try {
+                await db.collection('users').doc(uid).delete();
+                showToast('আইডি স্থায়ীভাবে ডিলিট করা হয়েছে');
+                loadAdminUserList(document.getElementById('adminSearchUser')?.value);
+            } catch (error) {
+                showToast('ডিলিট করতে সমস্যা হয়েছে!');
+            }
+        };
+
+        // ৬. স্থগিত আইডি রিয়েলটাইম লগআউট করার জন্য লিসেনার ওভাররাইড
+        if (typeof setupRealtimeListeners === "function") {
+            window.setupRealtimeListeners = function() {
+                if(!currentUser) return;
+                db.collection('users').doc(currentUser.uid).onSnapshot(doc => {
+                    if(doc.exists) {
+                        const data = doc.data();
+                        if(data.isBlocked) {
+                            handleLogout();
+                            alert("আপনার একাউন্ট সাময়িকভাবে স্থগিত করা হয়েছে। এডমিনের সাথে যোগাযোগ করুন।");
+                            return;
+                        }
+                        currentUser = data;
+                        currentUser.uid = doc.id;
+                        updateUI();
+                    }
+                });
+            };
+        }
+    </script>
+        <script>
+        // ১. ছবি আপলোড ও কম্প্রেস করার ফাংশন
+        window.uploadProfilePic = function(event) {
+            const file = event.target.files[0];
+            if(!file) return;
+            
+            // ফাইল সাইজ ৫ মেগাবাইটের বেশি হলে বাধা দেওয়া হবে
+            if(file.size > 5 * 1024 * 1024) return showToast("ফাইলের সাইজ খুব বড়! (সর্বোচ্চ ৫ MB)");
+
+            showToast('ছবি প্রসেস হচ্ছে...');
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    // ক্যানভাসের মাধ্যমে ছবি ছোট ও কম্প্রেস করা (যাতে ডাটাবেস দ্রুত কাজ করে)
+                    const canvas = document.createElement('canvas');
+                    const MAX_SIZE = 150; 
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > height) {
+                        if (width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; }
+                    } else {
+                        if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; }
+                    }
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    // 70% কোয়ালিটিতে JPEG হিসেবে কনভার্ট করা
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.7); 
+                    
+                    db.collection('users').doc(currentUser.uid).update({ profilePic: dataUrl })
+                    .then(() => {
+                        currentUser.profilePic = dataUrl;
+                        updateUI();
+                        showToast('প্রোফাইল ছবি সফলভাবে আপডেট হয়েছে!');
+                    })
+                    .catch(err => showToast('ছবি আপলোড ব্যর্থ হয়েছে!'));
+                }
+                img.src = e.target.result;
+            }
+            reader.readAsDataURL(file);
+        };
+
+        // ২. মেইন UI আপডেট ওভাররাইড করা (যেখানে প্রোফাইল ছবি দেখাবে)
+        const originalUpdateUI = window.updateUI;
+        window.updateUI = function() {
+            if(originalUpdateUI) originalUpdateUI();
+            if(!currentUser) return;
+            
+            // হেডারে ইউজারের নামের পাশে ছবি দেখানো
+            const headerBadge = document.querySelector('.user-badge');
+            if(headerBadge) {
+                const iconHTML = currentUser.profilePic 
+                    ? `<img src="${currentUser.profilePic}" style="width:24px; height:24px; border-radius:50%; object-fit:cover; border:1px solid gold; margin-right:5px;">` 
+                    : `<i class="fas fa-user-circle" style="margin-right:5px;"></i>`;
+                
+                // আগের আইকন বা ছবি সরিয়ে নতুনটি বসানো
+                const existingImg = headerBadge.querySelector('img');
+                const existingIcon = headerBadge.querySelector('i.fa-user-circle');
+                if(existingImg) existingImg.remove();
+                if(existingIcon) existingIcon.remove();
+                
+                headerBadge.insertAdjacentHTML('afterbegin', iconHTML);
+            }
+
+            // প্রোফাইল মডালে ছবি আপলোড করার ডিজাইন যুক্ত করা
+            const accModalBody = document.querySelector('#accountModal .modal-body');
+            if(accModalBody && !document.getElementById('profilePicWrapper')) {
+                const picUI = `
+                    <div id="profilePicWrapper" style="text-align:center; margin-bottom:20px;">
+                        <input type="file" id="profilePicInput" accept="image/*" style="display:none;" onchange="uploadProfilePic(event)">
+                        <div onclick="document.getElementById('profilePicInput').click()" style="width:90px; height:90px; margin:0 auto; border-radius:50%; border:3px solid gold; overflow:hidden; cursor:pointer; display:flex; align-items:center; justify-content:center; background:#111; box-shadow: 0 0 15px rgba(255, 215, 0, 0.3);">
+                            ${currentUser.profilePic ? `<img id="accProfileImg" src="${currentUser.profilePic}" style="width:100%; height:100%; object-fit:cover;">` : `<i class="fas fa-camera" style="font-size:35px; color:gold;"></i>`}
+                        </div>
+                        <div style="font-size:11px; color:#aaa; margin-top:8px;"><i class="fas fa-edit"></i> ছবি বদলাতে ক্লিক করুন</div>
+                    </div>
+                `;
+                accModalBody.insertAdjacentHTML('afterbegin', picUI);
+            } else if (document.getElementById('accProfileImg') && currentUser.profilePic) {
+                document.getElementById('accProfileImg').src = currentUser.profilePic;
+            } else if (document.getElementById('profilePicWrapper') && currentUser.profilePic) {
+                // যদি আগে ছবি না থাকে কিন্তু এখন আপডেট করা হয়
+                document.getElementById('profilePicWrapper').querySelector('div[onclick]').innerHTML = `<img id="accProfileImg" src="${currentUser.profilePic}" style="width:100%; height:100%; object-fit:cover;">`;
+            }
+        };
+
+        // ৩. মেসেজ সেকশনে ইউজার সার্চ করার সময় ছবি দেখানো
+        window.searchUsers = async function() {
+            const searchTerm = document.getElementById('searchUserInput').value.toLowerCase();
+            const snapshot = await db.collection('users').get();
+            let users = [];
+            snapshot.forEach(doc => {
+                if(doc.id !== currentUser.uid) {
+                    const data = doc.data();
+                    if(data.fullname.toLowerCase().includes(searchTerm) || data.username.toLowerCase().includes(searchTerm)) {
+                        users.push({ ...data, uid: doc.id });
+                    }
+                }
+            });
+            const container = document.getElementById('searchResults');
+            if(users.length === 0) { container.innerHTML = '<div style="text-align:center;color:gray;">কোনো ইউজার পাওয়া যায়নি</div>'; return; }
+            
+            container.innerHTML = users.map(u => {
+                const picHtml = u.profilePic ? `<img src="${u.profilePic}" style="width:35px; height:35px; border-radius:50%; object-fit:cover; border:1px solid gold;">` : `<i class="fas fa-user-circle" style="font-size:35px; color:gold;"></i>`;
+                return `<div class="user-search-item" onclick="startChat('${u.uid}', '${u.fullname}')" style="display:flex; align-items:center; gap:12px;">
+                    ${picHtml}
+                    <div>
+                        <strong style="font-size:15px;">${u.fullname}</strong><br>
+                        <span style="font-size:12px; color:#aaa;">@${u.username}</span>
+                    </div>
+                </div>`;
+            }).join('');
+        };
+
+        // ৪. লিডারবোর্ডে সবার প্রোফাইল ছবি দেখানো (বাগ ফিক্সড)
+        window.loadLeaderboard = async function() {
+            const snapshot = await db.collection('users').get();
+            let users = []; 
+            snapshot.forEach(doc => users.push({ ...doc.data(), uid: doc.id }));
+            
+            // সমাধান ১: সর্ট করার সময় points বা total না থাকলে 0 ধরে নেওয়া হবে
+            users.sort((a,b) => (b.points?.total || 0) - (a.points?.total || 0));
+            
+            const container = document.getElementById('leaderboardList');
+            container.innerHTML = users.slice(0, 20).map((u, idx) => {
+                // সমাধান ২: রেন্ডার করার সময় points বা total না থাকলে 0 দেখাবে
+                const safeTotalPoints = u.points?.total || 0;
+                
+                const picHtml = u.profilePic ? `<img src="${u.profilePic}" style="width:30px; height:30px; border-radius:50%; object-fit:cover; border:1px solid gold; margin-right:10px;">` : `<div style="margin-right:10px;"><i class="fas fa-user-circle" style="font-size:30px; color:gold;"></i></div>`;
+                
+                return `<div class="leaderboard-item" style="display:flex; align-items:center; justify-content:space-between;">
+                    <div style="display:flex; align-items:center;">
+                        <span class="rank-badge">${idx+1}</span>
+                        ${picHtml}
+                        <span style="font-weight:bold;">${u.fullname}</span>
+                    </div>
+                    <span style="color:gold; font-weight:bold;">${safeTotalPoints} <i class="fas fa-star" style="font-size:10px;"></i></span>
+                </div>`;
+            }).join('');
+        };
+
+        // ৫. চ্যাট উইন্ডোর হেডিংয়ে ছবি বসানো
+        const originalStartChat = window.startChat;
+        window.startChat = async function(uid, name) {
+            if(originalStartChat) await originalStartChat(uid, name);
+            
+            const receiverDoc = await db.collection('users').doc(uid).get();
+            if(receiverDoc.exists) {
+                const rData = receiverDoc.data();
+                const picHtml = rData.profilePic ? `<img src="${rData.profilePic}" style="width:25px; height:25px; border-radius:50%; object-fit:cover; vertical-align:middle; margin-right:8px; border:1px solid gold;">` : `<i class="fas fa-comment" style="margin-right:8px;"></i>`;
+                document.getElementById('chatWithName').innerHTML = `${picHtml} ${name}`;
+            }
+        };
+    </script>
+        <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            // ১. এডমিন প্যানেলে অ্যানাউন্সমেন্ট লেখার বক্স যুক্ত করা
+            const adminBody = document.querySelector("#adminModal .modal-body");
+            if (adminBody && !document.getElementById('adminAnnouncementSection')) {
+                const announcementAdminHTML = `
+                    <div id="adminAnnouncementSection" style="margin-top:20px; padding:15px; background:#111; border:1px solid gold; border-radius:20px;">
+                        <h4 style="color:gold; margin-bottom:10px;"><i class="fas fa-bullhorn"></i> অ্যানাউন্সমেন্ট সেট করুন</h4>
+                        <textarea id="adminAnnouncementInput" placeholder="এখানে নতুন অ্যানাউন্সমেন্ট বা নোটিশ লিখুন..." style="width:100%; height:80px; background:#1a1a1f; border:1px solid rgba(255,215,0,0.4); border-radius:15px; color:white; padding:10px; outline:none; resize:none; font-family:inherit; font-size:14px; box-sizing:border-box;"></textarea>
+                        <button onclick="saveAnnouncement()" style="width:100%; background:gold; color:black; padding:10px; border:none; border-radius:20px; font-weight:bold; margin-top:10px; cursor:pointer; font-size:14px;"><i class="fas fa-save"></i> অ্যানাউন্সমেন্ট আপডেট করুন</button>
+                    </div>
+                `;
+                adminBody.insertAdjacentHTML('beforeend', announcementAdminHTML);
+                
+                // এডমিন প্যানেল খোলার সময় বর্তমান অ্যানাউন্সমেন্ট লোড করা
+                loadAdminAnnouncement();
+            }
+
+            // ২. ব্যবহারকারীদের হোম স্ক্রিনে (ড্যাশবোর্ড) অ্যানাউন্সমেন্ট বক্স যুক্ত করা
+            const dashboard = document.querySelector(".dashboard");
+            if (dashboard && !document.getElementById('userAnnouncementCard')) {
+                const announcementUserHTML = `
+                    <div id="userAnnouncementCard" style="background: rgba(255, 215, 0, 0.05); border: 1px dashed gold; border-radius: 20px; padding: 15px; margin-bottom: 25px; display: none; align-items: center; gap: 12px; box-shadow: 0 0 10px rgba(255,215,0,0.1);">
+                        <div style="background: var(--gold-gradient); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #0a0a0f; flex-shrink: 0; box-shadow: var(--gold-glow);">
+                            <i class="fas fa-bullhorn"></i>
+                        </div>
+                        <div style="flex: 1;">
+                            <strong style="color: gold; font-size: 14px; display: block; margin-bottom: 3px;">অ্যানাউন্সমেন্ট:</strong>
+                            <p id="userAnnouncementText" style="color: #FFD966; font-size: 13px; line-height: 1.4; white-space: pre-line; margin: 0;"></p>
+                        </div>
+                    </div>
+                `;
+                
+                // স্বাগতম কার্ডের ঠিক নিচে নোটিশটি দেখানোর জন্য
+                const welcomeCard = document.querySelector(".welcome-card");
+                if (welcomeCard) {
+                    welcomeCard.insertAdjacentHTML('afterend', announcementUserHTML);
+                } else {
+                    dashboard.insertAdjacentHTML('afterbegin', announcementUserHTML);
+                }
+            }
+
+            // ৩. রিয়েল-টাইম লিসেনার চালু করা যাতে এডমিন চেঞ্জ করলেই ইউজারের স্ক্রিনে বদলে যায়
+            setupAnnouncementListener();
+        });
+
+        // ফায়ারবেস থেকে এডমিন প্যানেলে বর্তমান টেক্সট লোড করার ফাংশন
+        async function loadAdminAnnouncement() {
+            try {
+                const doc = await db.collection('settings').doc('announcement').get();
+                if (doc.exists && document.getElementById('adminAnnouncementInput')) {
+                    document.getElementById('adminAnnouncementInput').value = doc.data().text || '';
+                }
+            } catch (e) { 
+                console.error("Error loading announcement:", e); 
+            }
+        }
+
+        // নতুন অ্যানাউন্সমেন্ট ফায়ারবেসে সেভ করার ফাংশন
+        window.saveAnnouncement = async function() {
+            const text = document.getElementById('adminAnnouncementInput').value.trim();
+            try {
+                await db.collection('settings').doc('announcement').set({ text: text, updatedAt: Date.now() });
+                showToast('অ্যানাউন্সমেন্ট সফলভাবে আপডেট হয়েছে!');
+            } catch (e) {
+                showToast('আপডেট করতে ব্যর্থ হয়েছে!');
+            }
+        };
+
+        // রিয়েল-টাইম নোটিশ আপডেট ও প্রদর্শন লজিক
+        function setupAnnouncementListener() {
+            db.collection('settings').doc('announcement').onSnapshot(doc => {
+                const card = document.getElementById('userAnnouncementCard');
+                const textElem = document.getElementById('userAnnouncementText');
+                
+                if (doc.exists && doc.data().text) {
+                    if (textElem && card) {
+                        textElem.innerText = doc.data().text;
+                        card.style.display = 'flex'; // টেক্সট থাকলে বক্স দেখাবে
+                    }
+                } else {
+                    if (card) card.style.display = 'none'; // টেক্সট না থাকলে বা মুছে দিলে বক্স লুকিয়ে যাবে
+                }
+            });
+        }
+    </script>
+
+
 </body>
 </html>
