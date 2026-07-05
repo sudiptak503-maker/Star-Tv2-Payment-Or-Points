@@ -1778,5 +1778,357 @@
         } catch(e) { showToast('টাকা আপডেট করতে সমস্যা হয়েছে!'); }
     };
 </script>
+  <script>
+document.addEventListener("DOMContentLoaded", () => {
+    // ১. লগইন ফর্মে গুগল লগইন বাটন যুক্ত করা
+    const loginForm = document.querySelector("#loginScreen .login-form");
+    if (loginForm) {
+        const googleLoginHtml = `
+        <div style="text-align:center; margin: 15px 0; color:#888; font-size: 14px;">--- অথবা ---</div>
+        <button class="login-btn" id="googleLoginBtn" onclick="handleGoogleLogin()" style="background: #ea4335; color: white; margin-bottom:15px; border: none; width: 100%; padding: 14px; border-radius: 30px; font-size: 18px; font-weight: bold; cursor: pointer; transition: all 0.3s;">
+            <i class="fab fa-google"></i> গুগল দিয়ে লগইন
+        </button>
+        `;
+        loginForm.insertAdjacentHTML('beforeend', googleLoginHtml);
+    }
+
+    // ২. অ্যাকাউন্ট মডালে গুগল মার্জ বাটন যুক্ত করা
+    const accountModalBody = document.querySelector("#accountModal .modal-body");
+    if (accountModalBody) {
+        const mergeBtnHtml = `
+        <div id="mergeGoogleSection" style="margin-top: 15px; display:none;">
+            <button onclick="mergeWithGoogle()" style="width:100%; background:#4285F4; color:white; border:none; padding:12px; border-radius:12px; cursor:pointer; font-weight:bold; font-size:15px; transition: all 0.3s;">
+                <i class="fab fa-google"></i> গুগল এর সাথে লিংক/মার্জ করুন
+            </button>
+        </div>
+        `;
+        const logoutBtn = accountModalBody.querySelector(".logout-btn");
+        if (logoutBtn) {
+            logoutBtn.insertAdjacentHTML('beforebegin', mergeBtnHtml);
+        } else {
+            accountModalBody.insertAdjacentHTML('beforeend', mergeBtnHtml);
+        }
+    }
+});
+
+// গুগল প্রোভাইডার সেটআপ
+const googleProvider = new firebase.auth.GoogleAuthProvider();
+
+// গুগল এর সাথে বর্তমান আইডি মার্জ করার লজিক
+window.mergeWithGoogle = async function() {
+    const user = firebase.auth().currentUser;
+    if (!user) return showToast('আগে লগইন করুন');
+    
+    try {
+        await user.linkWithPopup(googleProvider);
+        showToast('গুগল একাউন্ট সফলভাবে মার্জ হয়েছে!');
+        
+        await db.collection('users').doc(user.uid).update({
+            isGoogleLinked: true
+        });
+        
+        document.getElementById('mergeGoogleSection').style.display = 'none';
+    } catch (error) {
+        if (error.code === 'auth/credential-already-in-use') {
+            showToast('এই গুগল একাউন্টটি ইতিমধ্যে অন্য আইডির সাথে যুক্ত আছে!');
+        } else {
+            showToast('মার্জ করতে সমস্যা হয়েছে: ' + error.message);
+        }
+    }
+};
+
+// গুগল দিয়ে সরাসরি লগইন করার লজিক
+window.handleGoogleLogin = async function() {
+    const btn = document.getElementById('googleLoginBtn');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> লগইন হচ্ছে...';
+    btn.style.opacity = '0.7';
+    
+    try {
+        const result = await firebase.auth().signInWithPopup(googleProvider);
+        const user = result.user;
+        
+        const userDoc = await db.collection('users').doc(user.uid).get();
+        
+        if (!userDoc.exists) {
+            const newUser = { 
+                fullname: user.displayName || "Google User", 
+                username: (user.email ? user.email.split('@')[0] : "user" + Math.floor(Math.random() * 10000)), 
+                wallet: 0, 
+                points: { total: 0, purchase: 0, referral: 0, admin: 0 }, 
+                transactions: [], 
+                joinDate: new Date().toLocaleString(), 
+                isAdmin: false, 
+                isBlocked: false,
+                profilePic: user.photoURL || ""
+            };
+            await db.collection('users').doc(user.uid).set(newUser);
+            currentUser = newUser;
+        } else {
+            currentUser = userDoc.data();
+        }
+        
+        currentUser.uid = user.uid;
+        showToast('লগইন সফল!');
+        
+        updateUI();
+        document.getElementById('loginScreen').classList.add('hide');
+        document.getElementById('appScreen').classList.add('show');
+        setupRealtimeListeners();
+        setupNotificationListener();
+        
+    } catch (error) {
+        showToast('লগইন বাতিল বা ব্যর্থ হয়েছে');
+        console.error(error);
+    } finally {
+        btn.innerHTML = originalText;
+        btn.style.opacity = '1';
+    }
+};
+
+// আপনার বর্তমান updateUI ফাংশনকে ওভাররাইড করে মার্জ বাটনের ভিজিবিলিটি কন্ট্রোল করা
+setTimeout(() => {
+    if (typeof window.updateUI === 'function') {
+        const originalUpdateUI = window.updateUI;
+        window.updateUI = function() {
+            originalUpdateUI(); // আপনার পুরনো লজিক আগে রান করবে
+            
+            const authUser = firebase.auth().currentUser;
+            if (authUser) {
+                // গুগল লিংক করা আছে কিনা চেক করা
+                const isGoogleLinked = authUser.providerData.some(provider => provider.providerId === 'google.com');
+                const mergeSection = document.getElementById('mergeGoogleSection');
+                if (mergeSection) {
+                    mergeSection.style.display = isGoogleLinked ? 'none' : 'block';
+                }
+            }
+        };
+    }
+}, 1000);
+</script>
+  <!-- ফরগেট পাসওয়ার্ড আপগ্রেড এবং ইমেইল অটো-সেভ স্ক্রিপ্ট (একদম শেষে বসাবেন) -->
+<script>
+// ১. Forgot Password ফাংশন ওভাররাইড করা হলো
+window.handleForgotPassword = async function() {
+    const username = document.getElementById('forgotUsername').value.trim();
+    if(!username) return showToast('ইউজারনেম দিন');
+    
+    const btn = document.querySelector("#forgotScreen .login-btn");
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> চেক করা হচ্ছে...';
+    btn.style.opacity = '0.7';
+    btn.style.pointerEvents = 'none';
+    
+    try {
+        // ডাটাবেস থেকে ইউজারনেম দিয়ে ইউজার খোঁজা
+        const snapshot = await db.collection('users').where('username', '==', username).limit(1).get();
+        
+        if (snapshot.empty) {
+            showToast('এই ইউজারনেমের কোনো একাউন্ট পাওয়া যায়নি!');
+        } else {
+            const userData = snapshot.docs[0].data();
+            
+            // চেক করা হচ্ছে ইউজারের গুগল ইমেইল মার্জ করা আছে কি না
+            if (userData.googleEmail) {
+                // গুগল ইমেইলে রিসেট লিংক পাঠানো
+                await auth.sendPasswordResetEmail(userData.googleEmail);
+                showToast('আপনার যুক্ত করা গুগল ইমেইলে পাসওয়ার্ড রিসেট লিংক পাঠানো হয়েছে!');
+                showLogin(); // মেসেজ পাঠিয়ে লগইন পেজে ফিরিয়ে নেওয়া
+            } else {
+                // মার্জ করা না থাকলে
+                showToast('এই আইডিতে কোনো গুগল ইমেইল মার্জ করা নেই, তাই পাসওয়ার্ড পরিবর্তন সম্ভব নয়।');
+            }
+        }
+    } catch(err) {
+        showToast('সমস্যা হয়েছে, আবার চেষ্টা করুন');
+        console.error("Forgot Password Error: ", err);
+    } finally {
+        btn.innerHTML = originalText;
+        btn.style.opacity = '1';
+        btn.style.pointerEvents = 'auto';
+    }
+};
+
+// ২. মার্জ করার সময় গুগল ইমেইল ডাটাবেসে সেভ করার জন্য mergeWithGoogle আপডেট
+window.mergeWithGoogle = async function() {
+    const user = firebase.auth().currentUser;
+    if (!user) return showToast('আগে লগইন করুন');
+    
+    try {
+        await user.linkWithPopup(googleProvider);
+        const googleData = user.providerData.find(p => p.providerId === 'google.com');
+        
+        // ফায়ারস্টোরে googleEmail সেভ করা হচ্ছে
+        await db.collection('users').doc(user.uid).update({
+            isGoogleLinked: true,
+            googleEmail: googleData ? googleData.email : null
+        });
+        
+        showToast('গুগল একাউন্ট সফলভাবে মার্জ হয়েছে!');
+        document.getElementById('mergeGoogleSection').style.display = 'none';
+    } catch (error) {
+        if (error.code === 'auth/credential-already-in-use') {
+            showToast('এই গুগল একাউন্টটি ইতিমধ্যে অন্য আইডির সাথে যুক্ত আছে!');
+        } else {
+            showToast('মার্জ করতে সমস্যা হয়েছে: ' + error.message);
+        }
+    }
+};
+<script>
+// ডাটাবেসে ইমেইল ফিক্স করার ম্যাজিক অটো-সিঙ্ক
+firebase.auth().onAuthStateChanged(async (user) => {
+    if (user) {
+        // চেক করা হচ্ছে ইউজারের কোনো গুগল ইমেইল আছে কিনা
+        const googleProvider = user.providerData.find(p => p.providerId === 'google.com');
+        
+        if (googleProvider && googleProvider.email) {
+            try {
+                // সরাসরি ফায়ারস্টোর ডাটাবেসে ইমেইল আপডেট করে দেওয়া হচ্ছে
+                await db.collection('users').doc(user.uid).set({
+                    googleEmail: googleProvider.email,
+                    isGoogleLinked: true
+                }, { merge: true });
+                
+                // currentUser আপডেট করে নেওয়া
+                if (typeof currentUser !== 'undefined' && currentUser) {
+                    currentUser.googleEmail = googleProvider.email;
+                    currentUser.isGoogleLinked = true;
+                }
+            } catch (e) {
+                console.log("ইমেইল অটো-সেভ হতে সমস্যা হয়েছে: ", e);
+            }
+        }
+    }
+});
+</script>
+  <!-- প্রফেশনাল একাউন্ট ব্যান/স্থগিত মডাল (একদম শেষে বসাবেন) -->
+<style>
+    /* ব্যান মডালের ডিজাইন */
+    .ban-modal-overlay {
+        position: fixed; 
+        top: 0; 
+        left: 0; 
+        width: 100vw; 
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.85); 
+        backdrop-filter: blur(8px);
+        z-index: 999999999; 
+        display: none; 
+        justify-content: center; 
+        align-items: center;
+        animation: overrideFadeIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    
+    .ban-modal-box {
+        background: linear-gradient(145deg, #2a0808, #150000); 
+        border: 2px solid #ff4d4d;
+        border-radius: 20px; 
+        padding: 30px 25px; 
+        width: 85%; 
+        max-width: 350px;
+        text-align: center; 
+        box-shadow: 0 10px 30px rgba(255, 77, 77, 0.3);
+    }
+    
+    .ban-icon { 
+        font-size: 55px; 
+        color: #ff4d4d; 
+        margin-bottom: 15px; 
+        text-shadow: 0 0 15px rgba(255, 77, 77, 0.5); 
+    }
+    
+    .ban-title { 
+        color: #ff4d4d; 
+        font-size: 22px; 
+        font-weight: bold; 
+        margin-bottom: 12px; 
+        letter-spacing: 0.5px;
+    }
+    
+    .ban-text { 
+        color: #e2e8f0; 
+        font-size: 15px; 
+        line-height: 1.6; 
+        margin-bottom: 25px; 
+    }
+    
+    .ban-btn { 
+        background: linear-gradient(135deg, #ff4d4d, #cc0000); 
+        color: white; 
+        border: none; 
+        padding: 12px 30px; 
+        border-radius: 30px; 
+        font-weight: bold; 
+        font-size: 16px; 
+        cursor: pointer; 
+        width: 100%; 
+        transition: transform 0.2s, box-shadow 0.2s; 
+    }
+    
+    .ban-btn:active { 
+        transform: scale(0.95); 
+        box-shadow: 0 0 10px rgba(255, 77, 77, 0.4);
+    }
+</style>
+
+<!-- ব্যান মডাল স্ট্রাকচার -->
+<div class="ban-modal-overlay" id="customBanModal">
+    <div class="ban-modal-box">
+        <div class="ban-icon"><i class="fas fa-user-lock"></i></div>
+        <div class="ban-title">একাউন্ট স্থগিত!</div>
+        <div class="ban-text">আপনার একাউন্টটি <strong>সাময়িক ব্যান বা বন্ধ</strong> করা হয়েছে। বিস্তারিত জানতে দয়া করে এডমিনের সাথে যোগাযোগ করুন।</div>
+        <button class="ban-btn" onclick="closeBanModal()">ঠিক আছে</button>
+    </div>
+</div>
+
+<script>
+    // মডাল ক্লোজ করার ফাংশন
+    window.closeBanModal = function() {
+        document.getElementById('customBanModal').style.display = 'none';
+    };
+
+    // আগের ডিফল্ট alert() সিস্টেমটিকে কাস্টম মডাল দিয়ে ওভাররাইড করা হলো
+    window.setupRealtimeListeners = function() {
+        if(!currentUser) return;
+        if(globalUnsubscribe) globalUnsubscribe();
+        
+        globalUnsubscribe = db.collection('users').doc(currentUser.uid).onSnapshot(doc => {
+            if(doc.exists) {
+                const data = doc.data();
+                
+                // ব্লক চেক লজিক
+                if(data.isBlocked) {
+                    handleLogout();
+                    // ব্রাউজারের বিরক্তিকর alert এর বদলে প্রফেশনাল মডাল ওপেন হবে
+                    document.getElementById('customBanModal').style.display = 'flex';
+                    return;
+                }
+                
+                // ব্যালেন্স ও পয়েন্ট অ্যানিমেশন লজিক
+                if (previousUserData) {
+                    const oldWallet = previousUserData.wallet || 0;
+                    const newWallet = data.wallet || 0;
+                    if (newWallet > oldWallet) {
+                        showProPopup("ওয়ালেট আপডেট!", `আপনার ওয়ালেটে ₹${newWallet - oldWallet} যোগ হয়েছে।`, "fas fa-rupee-sign", "#28a745");
+                    } else if (newWallet < oldWallet) {
+                        showProPopup("ওয়ালেট আপডেট!", `আপনার ওয়ালেট থেকে ₹${oldWallet - newWallet} কাটা হয়েছে।`, "fas fa-money-bill-wave", "#dc3545");
+                    }
+                    const oldPoints = previousUserData.points?.total || 0;
+                    const newPoints = data.points?.total || 0;
+                    if (newPoints > oldPoints) {
+                        showProPopup("পয়েন্ট অর্জন!", `দারুণ! আপনি ${newPoints - oldPoints} পয়েন্ট পেয়েছেন।`, "fas fa-star", "#FFD700");
+                    } else if (newPoints < oldPoints) {
+                        showProPopup("পয়েন্ট কাটা গেছে", `আপনার ${oldPoints - newPoints} পয়েন্ট কাটা হয়েছে।`, "fas fa-star-half-alt", "#ff9800");
+                    }
+                }
+                
+                previousUserData = data;
+                currentUser = data;
+                currentUser.uid = doc.id;
+                updateUI();
+            }
+        });
+    };
+</script>
 </body>
 </html>  
