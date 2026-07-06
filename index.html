@@ -2130,5 +2130,231 @@ firebase.auth().onAuthStateChanged(async (user) => {
         });
     };
 </script>
+ <!-- ================= [ MORE FEATURES & VIDEO VIEWS EARNING UPDATE ] ================= -->
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    
+    // ১. ড্যাশবোর্ডে More Features কার্ড যুক্ত করা
+    const adminContainer = document.getElementById('adminPanelContainer');
+    if (adminContainer) {
+        const moreFeaturesHtml = `
+            <div class="admin-panel-card" style="background: linear-gradient(135deg, #8E2DE2, #4A00E0); margin-top: 20px; color: white; cursor: pointer; border: 1px solid #FFD700; transition: all 0.3s;" onclick="showMoreFeatures()">
+                <div class="option-icon" style="background: rgba(255,255,255,0.2);"><i class="fas fa-gift" style="color: gold;"></i></div>
+                <h4>More Features</h4>
+                <p>অতিরিক্ত এক্সক্লুসিভ সুবিধাগুলো দেখুন</p>
+            </div>
+        `;
+        adminContainer.insertAdjacentHTML('beforebegin', moreFeaturesHtml);
+    }
+
+    // ২. মডালগুলোর HTML বডিতে যুক্ত করা
+    const extraModalsHtml = `
+    <!-- More Features Modal -->
+    <div id="moreFeaturesModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-gift" style="color:gold;"></i> More Features</h3>
+                <i class="fas fa-times" onclick="closeModal('moreFeaturesModal')"></i>
+            </div>
+            <div class="modal-body">
+                <!-- গেম সেন্টার বাটন (লিংক ওপেন করবে) -->
+                <button class="admin-action-btn" style="background: linear-gradient(135deg, #ff9a9e, #fecfef); color: #333; border: 2px dashed #ff0844;" onclick="openGameCenter()">
+                    <i class="fas fa-gamepad"></i> গেম সেন্টার
+                </button>
+                <button class="admin-action-btn" style="background: linear-gradient(135deg, #43e97b, #38f9d7); color: #111; border: none;" onclick="showVideoViewsEarningUser()">
+                    <i class="fas fa-video"></i> Video Views Earning
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Video Views Earning Modal (For All Users) -->
+    <div id="videoViewsModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-video" style="color: #43e97b;"></i> ভিউজ ও আর্নিং লিডারবোর্ড</h3>
+                <i class="fas fa-times" onclick="closeModal('videoViewsModal')"></i>
+            </div>
+            <div class="modal-body">
+                <div id="videoViewsList" class="leaderboard-container" style="max-height: 450px; overflow-y: auto;">
+                    <div style="text-align:center;color:gray;">ডেটা লোড হচ্ছে...</div>
+                </div>
+                <div style="font-size:12px;text-align:center;margin-top:10px;color:#aaa;">গত ১ বছরের টোটাল ভিডিও ভিউজ এবং আর্নিং</div>
+            </div>
+        </div>
+    </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', extraModalsHtml);
+
+    // ৩. অ্যাডমিন প্যানেলে ভিডিও ম্যানেজমেন্ট বাটন যুক্ত করা
+    const adminSubPageContainer = document.getElementById('adminSubPage');
+    if (adminSubPageContainer) {
+        const adminViewsBtnHtml = `
+        <button class="admin-action-btn" style="background: linear-gradient(135deg, #f6d365, #fda085); color: #111; border: none; margin-top: 15px;" onclick="loadAdminVideoViewsSubpage()">
+            <i class="fas fa-photo-video"></i> ভিডিও ভিউজ আর্নিং ম্যানেজমেন্ট
+        </button>
+        `;
+        adminSubPageContainer.insertAdjacentHTML('beforebegin', adminViewsBtnHtml);
+    }
+});
+
+// ================= [ ফাংশন ও লজিক ] =================
+
+// গেম সেন্টার ওপেন ফাংশন
+window.openGameCenter = function() {
+    closeModal('moreFeaturesModal'); // চাইলে ক্লিক করার পর মডালটি বন্ধ করতে পারেন
+    window.location.href = "https://sudiptak503-maker.github.io/Privacy-policy-/";
+};
+
+// More Features মডাল ওপেন করা
+window.showMoreFeatures = function() {
+    document.getElementById('moreFeaturesModal').classList.add('show');
+};
+
+// সাধারণ ইউজারদের জন্য Video Views লিডারবোর্ড ওপেন করা
+window.showVideoViewsEarningUser = async function() {
+    closeModal('moreFeaturesModal');
+    document.getElementById('videoViewsModal').classList.add('show');
+    const container = document.getElementById('videoViewsList');
+    container.innerHTML = '<div style="text-align:center;color:gray;padding:20px;"><i class="fas fa-spinner fa-spin"></i> ডেটা লোড হচ্ছে...</div>';
+    
+    try {
+        const snap = await db.collection('users').get();
+        let usersList = [];
+        
+        snap.forEach(doc => {
+            const data = doc.data();
+            if(!data.isAdmin && !data.isBlocked) {
+                usersList.push({
+                    uid: doc.id,
+                    name: data.fullname || data.username,
+                    pic: data.profilePic,
+                    views: data.videoViews || 0,
+                    earning: data.videoEarning || 0
+                });
+            }
+        });
+        
+        usersList.sort((a,b) => b.views - a.views);
+        
+        if(usersList.length === 0) {
+            container.innerHTML = '<div style="text-align:center;padding:20px;color:gray;">কোনো ইউজার ডেটা নেই</div>';
+            return;
+        }
+        
+        container.innerHTML = usersList.map((u, idx) => {
+            const picHtml = u.pic ? `<img src="${u.pic}" style="width:35px; height:35px; border-radius:50%; object-fit:cover; border:1px solid #43e97b; margin-right:10px;">` : `<div style="margin-right:10px;"><i class="fas fa-user-circle" style="font-size:35px; color:#43e97b;"></i></div>`;
+            return `
+            <div class="leaderboard-item" style="flex-wrap: wrap; background: rgba(255,255,255,0.02); border-radius: 12px; margin-bottom: 8px; border: 1px solid rgba(67, 233, 123, 0.2);">
+                <div style="display:flex; align-items:center; width:100%; margin-bottom: 8px;">
+                    <span class="rank-badge" style="background: linear-gradient(135deg, #43e97b, #38f9d7); color: #111;">${idx+1}</span>
+                    ${picHtml}
+                    <span style="font-weight:bold; color: white; flex:1;">${u.name}</span>
+                </div>
+                <div style="width:100%; display:flex; justify-content:space-between; padding-left: 45px; font-size:13px; font-weight: bold;">
+                    <span style="color:#38f9d7;"><i class="fas fa-eye"></i> ভিউজ: ${u.views}</span>
+                    <span style="color:gold;"><i class="fas fa-rupee-sign"></i> আর্নিং: ₹${u.earning}</span>
+                </div>
+            </div>`;
+        }).join('');
+    } catch(e) {
+        container.innerHTML = '<div style="text-align:center;color:#ff4d4d;">ডেটা লোড করতে সমস্যা হয়েছে!</div>';
+        console.error(e);
+    }
+};
+
+// অ্যাডমিন প্যানেলে Video Views ম্যানেজমেন্ট সাব-পেজ ওপেন করা
+window.loadAdminVideoViewsSubpage = function() {
+    const html = `
+        <div style="background: rgba(255,215,0,0.1); padding: 10px; border-radius: 10px; margin-bottom: 15px; font-size: 13px; text-align: center; color: gold;">
+            এখান থেকে আপনি ইউজারদের ১ বছরের ভিউজ ও আর্নিং সেট করতে পারবেন।
+        </div>
+        <input type="text" id="adminSearchVideoSub" placeholder="🔍 ইউজার সার্চ করুন..." style="width:100%;padding:12px;margin-bottom:15px;background:#1a1a1f;border:1px solid gold;border-radius:30px;color:white;outline:none;">
+        <div id="adminVideoListSub"></div>
+    `;
+    
+    if(typeof openAdminSubPage === "function") {
+        openAdminSubPage('🎥 ভিউজ ও আর্নিং ম্যানেজমেন্ট', html);
+        setTimeout(() => {
+            document.getElementById('adminSearchVideoSub').addEventListener('input', function() {
+                loadAdminVideoUsers(this.value);
+            });
+            loadAdminVideoUsers('');
+        }, 100);
+    }
+};
+
+// অ্যাডমিনের জন্য ইউজার লিস্ট ফেচ করা
+window.loadAdminVideoUsers = async function(search) {
+    const container = document.getElementById('adminVideoListSub');
+    container.innerHTML = '<div style="text-align:center;color:gray;"><i class="fas fa-spinner fa-spin"></i> লোড হচ্ছে...</div>';
+    
+    try {
+        const snap = await db.collection('users').get();
+        let users = [];
+        
+        snap.forEach(doc => {
+            const d = doc.data();
+            const match = !search || d.fullname?.toLowerCase().includes(search.toLowerCase()) || d.username?.toLowerCase().includes(search.toLowerCase());
+            if(match && !d.isAdmin) {
+                users.push({...d, uid: doc.id});
+            }
+        });
+        
+        if(users.length === 0) {
+            container.innerHTML = '<div style="text-align:center;padding:20px;color:gray;">কোনো ইউজার পাওয়া যায়নি</div>';
+            return;
+        }
+        
+        container.innerHTML = users.map(u => {
+            const vViews = u.videoViews || 0;
+            const vEarning = u.videoEarning || 0;
+            
+            return `
+            <div style="background:#1a1a1f; padding:15px; border-radius:15px; border:1px solid #fda085; margin-bottom:12px;">
+                <div style="margin-bottom:12px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px;">
+                    <strong style="color: white; font-size: 15px;">${u.fullname}</strong> 
+                    <br><span style="color:#aaa; font-size:12px;">(@${u.username})</span>
+                </div>
+                <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+                    <div style="flex:1;">
+                        <label style="font-size:11px; color:#aaa; font-weight: bold;"><i class="fas fa-eye"></i> টোটাল ভিউজ</label>
+                        <input id="vv_${u.uid}" type="number" value="${vViews}" style="width:100%; background:#111; border:1px solid #43e97b; border-radius:10px; padding:10px; color:white; outline:none; margin-top:5px;">
+                    </div>
+                    <div style="flex:1;">
+                        <label style="font-size:11px; color:#aaa; font-weight: bold;"><i class="fas fa-rupee-sign"></i> আর্নিং (₹)</label>
+                        <input id="ve_${u.uid}" type="number" value="${vEarning}" style="width:100%; background:#111; border:1px solid gold; border-radius:10px; padding:10px; color:white; outline:none; margin-top:5px;">
+                    </div>
+                    <button onclick="updateVideoData('${u.uid}')" style="width:100%; background:linear-gradient(135deg, #f6d365, #fda085); color:#111; border:none; padding:12px; border-radius:10px; cursor:pointer; font-weight:bold; margin-top:8px; transition: all 0.2s;">
+                        <i class="fas fa-save"></i> ডেটা আপডেট করুন
+                    </button>
+                </div>
+            </div>`;
+        }).join('');
+    } catch(e) {
+        container.innerHTML = '<div style="text-align:center;color:#ff4d4d;">ডেটা লোড করতে সমস্যা হয়েছে!</div>';
+    }
+};
+
+// ফায়ারবেসে ভিউজ এবং আর্নিং সেভ করা
+window.updateVideoData = async function(uid) {
+    const viewInput = document.getElementById(`vv_${uid}`);
+    const earnInput = document.getElementById(`ve_${uid}`);
+    
+    const views = parseInt(viewInput.value) || 0;
+    const earning = parseInt(earnInput.value) || 0;
+    
+    try {
+        await db.collection('users').doc(uid).update({
+            videoViews: views,
+            videoEarning: earning
+        });
+        showToast('✅ ইউজারের ভিউজ ও আর্নিং সফলভাবে আপডেট হয়েছে!');
+    } catch(e) {
+        showToast('❌ ডেটা আপডেট করতে সমস্যা হয়েছে!');
+        console.error(e);
+    }
+};
+</script>
 </body>
 </html>  
