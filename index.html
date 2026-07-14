@@ -3589,7 +3589,7 @@ window.submitEmiUtr = async function(emi) {
 };
 
 
-// ================= [ ADMIN SIDE: LOAN MANAGEMENT ] =================
+// ================= [ ADMIN SIDE: LOAN MANAGEMENT (UPDATED WITH OVERDUE DETAILS) ] =================
 window.openAdminLoanPanel = async function() {
     if(typeof closeModal === 'function') closeModal('adminModal');
     document.getElementById('adminLoanModal').classList.add('show');
@@ -3635,15 +3635,44 @@ window.openAdminLoanPanel = async function() {
             </div>`;
         } else if(r.loanStatus === 'active') {
             const due = (r.activeLoanAmount * 1.4) - (r.loanPaidAmount || 0);
-            return `<div style="background:#1a1a1f;padding:15px;border-radius:15px;border:1px solid #ff4d4d;margin-bottom:12px;">
-                <strong style="color:white;">${r.fullname}</strong><div style="color:#ff4d4d;font-weight:bold;font-size:18px;margin:10px 0;">ডিউ বাকি: ₹${due}</div>
-                <button onclick="adminBlockDueUser('${r.uid}', ${r.isBlocked})" style="width:100%;background:${r.isBlocked ? '#28a745' : '#dc3545'};color:white;border:none;padding:10px;border-radius:8px;">
-                    <i class="fas ${r.isBlocked ? 'fa-unlock' : 'fa-ban'}"></i> ${r.isBlocked ? 'আনব্লক করুন' : 'ব্লক করুন'}
+            
+            // ডেট ও ওভারডিউ ক্যালকুলেশন লজিক
+            let timeStatusHtml = '<span style="color:gray;font-size:12px;">তারিখ অজানা</span>';
+            let isOverdue = false;
+
+            if (r.loanDueDate) {
+                const diffDays = Math.ceil((r.loanDueDate - Date.now()) / (1000 * 60 * 60 * 24));
+                
+                if (diffDays > 0) {
+                    timeStatusHtml = `<span style="color:#43e97b;font-size:13px;font-weight:bold;">⏳ সময় বাকি: ${diffDays} দিন</span>`;
+                } else if (diffDays === 0) {
+                    timeStatusHtml = `<span style="color:orange;font-size:13px;font-weight:bold;">⚠️ আজই পেমেন্টের শেষ দিন</span>`;
+                } else {
+                    isOverdue = true;
+                    timeStatusHtml = `<span style="background:rgba(220,38,38,0.2);color:#ff4d4d;padding:4px 8px;border-radius:5px;font-size:13px;font-weight:bold;border:1px solid #ff4d4d;">🚨 ওভারডিউ: ${Math.abs(diffDays)} দিন</span>`;
+                }
+            }
+
+            return `<div style="background:#1a1a1f;padding:15px;border-radius:15px;border:1px solid ${isOverdue ? '#ff4d4d' : '#FFD700'};margin-bottom:12px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <strong style="color:white;font-size:16px;">${r.fullname}</strong>
+                    ${timeStatusHtml}
+                </div>
+                
+                <div style="color:#ff4d4d;font-weight:bold;font-size:18px;margin:10px 0;">ডিউ বাকি: ₹${due}</div>
+                <div style="font-size:12px;color:gray;margin-bottom:10px;display:flex;justify-content:space-between;">
+                    <span>মোট লোন: ₹${r.activeLoanAmount}</span>
+                    <span>জমা পড়েছে: ₹${r.loanPaidAmount || 0}</span>
+                </div>
+                
+                <button onclick="adminBlockDueUser('${r.uid}', ${r.isBlocked})" style="width:100%;background:${r.isBlocked ? '#28a745' : '#dc3545'};color:white;border:none;padding:10px;border-radius:8px;font-weight:bold;cursor:pointer;">
+                    <i class="fas ${r.isBlocked ? 'fa-unlock' : 'fa-ban'}"></i> ${r.isBlocked ? 'আইডি আনব্লক করুন' : 'ডিউ করলে ব্লক করুন'}
                 </button>
             </div>`;
         }
     }).join('');
 };
+
 
 // ================= [ ADMIN SIDE: CIBIL MANUAL UPDATE ] =================
 window.openAdminCibilModal = async function() {
