@@ -3767,5 +3767,331 @@ window.adminBlockDueUser = async function(uid, currentBlockStatus) {
 };
 </script>
 <!-- ================= [ ADVANCED LOAN SYSTEM END ] ================= -->
+<!-- ================= [ UPDATE: OVERDUE PENALTY & ADMIN PANEL ENHANCEMENT ] ================= -->
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+
+    // ১. প্রতিদিনের পেনাল্টি এবং সিভিল আপডেট করার সিঙ্ক ফাংশন
+    window.syncLoanPenalties = async function(uid, data) {
+        if ((data.loanStatus === 'active' || data.loanStatus === 'repayment_pending') && data.loanDueDate) {
+            const now = Date.now();
+            const daysOverdue = Math.floor((now - data.loanDueDate) / (1000 * 60 * 60 * 24));
+            
+            if (daysOverdue > 0) {
+                const penalizedDays = data.penalizedDays || 0;
+                
+                // যদি নতুন ওভারডিউ দিন থাকে, তবেই পেনাল্টি যোগ হবে
+                if (daysOverdue > penalizedDays) {
+                    const daysToPenalize = daysOverdue - penalizedDays;
+                    const extraPenalty = daysToPenalize * 5; // প্রতিদিন ৫ টাকা এক্সট্রা চার্জ
+                    const newPenaltyTotal = (data.overduePenalty || 0) + extraPenalty;
+                    
+                    const currentCibil = data.cibilScore !== undefined ? data.cibilScore : 100;
+                    const newCibil = Math.max(0, currentCibil - (daysToPenalize * 5)); // সিভিলের ওপর প্রভাব (প্রতিদিন -৫)
+
+                    await db.collection('users').doc(uid).update({
+                        overduePenalty: newPenaltyTotal,
+                        penalizedDays: daysOverdue,
+                        cibilScore: newCibil,
+                        isLoanDefaulted: daysOverdue > 30 ? true : (data.isLoanDefaulted || false)
+                    });
+                    
+                    // লোকাল ডেটা আপডেট করা হলো যাতে UI সাথে সাথে পরিবর্তন হয়
+                    data.overduePenalty = newPenaltyTotal;
+                    data.penalizedDays = daysOverdue;
+                    data.cibilScore = newCibil;
+                    if(daysOverdue > 30) data.isLoanDefaulted = true;
+                }
+            }
+        }
+        return data;
+    };
+
+    // ২. ইউজারের লোন মডাল ওভাররাইড (পেনাল্টি এবং সঠিক চার্জ দেখানোর জন্য)
+    window.openLoanModal = async function() {
+        if(typeof closeModal === 'function') closeModal('moreFeaturesModal');
+        const container = document.getElementById('loanModalBody');
+        container.innerHTML = '<div style="text-align:center;color:gray;"><i class="fas fa-spinner fa-spin"></i> ডেটা লোড হচ্ছে...</div>';
+        document.getElementById('loanModal').classList.add('show');
+
+        if(!currentUser) return;
+
+        try {
+            const doc = await db.collection('users').doc(currentUser.uid).get();
+            let data = doc.data();
+            
+            // ডেটা দেখানোর আগেই পেনাল্টি সিঙ্ক করে নেওয়া হলো
+            data = await window.syncLoanPenalties(currentUser.uid, data);
+            
+            const loanStatus = data.loanStatus || 'none'; 
+            const rejectDate = data.loanRejectDate || 0;
+
+            let cibilScore = data.cibilScore !== undefined ? data.cibilScore : 100;
+            let isDefaulted = data.isLoanDefaulted || false;
+            let displayCibil = cibilScore;
+            let dueDateText = "";
+            let emi = 0;
+            let totalRepay = 0;
+            let paid = 0;
+            let loanAmount = 0;
+            let penalty = 0;
+            let currentDue = 0;
+
+            if (loanStatus === 'active' || loanStatus === 'repayment_pending') {
+                loanAmount = data.activeLoanAmount || 0;
+                let baseTotalRepay = loanAmount + (loanAmount * 0.4);
+                
+                penalty = data.overduePenalty || 0;
+                let baseEmi = baseTotalRepay / 4;
+                emi = baseEmi + penalty; // কিস্তির সাথে ওভারডিউ চার্জ যুক্ত হলো
+                
+                let totalLifetimePenalty = (data.totalLifetimePenalty || 0) + penalty;
+                totalRepay = baseTotalRepay + totalLifetimePenalty;
+                paid = data.loanPaidAmount || 0;
+                currentDue = totalRepay - paid;
+
+                if (data.loanDueDate) {
+                    const now = Date.now();
+                    const diffMs = data.loanDueDate - now;
+                    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+                    if (diffDays > 0) {
+                        dueDateText = `<div style="background:rgba(67, 233, 123, 0.1); border:1px solid #43e97b; padding:8px; border-radius:8px; margin-bottom:15px; color:#43e97b; font-weight:bold; text-align:center;">⏳ ডিউ হতে আর ${diffDays} দিন বাকি</div>`;
+                    } else if (diffDays === 0) {
+                        dueDateText = `<div style="background:rgba(255, 165, 0, 0.1); border:1px solid orange; padding:8px; border-radius:8px; margin-bottom:15px; color:orange; font-weight:bold; text-align:center;">⚠️ আজকেই ডিউ ডেট (Due Today)</div>`;
+                    } else {
+                        dueDateText = `<div style="background:rgba(220, 38, 38, 0.1); border:1px dashed #ff4d4d; padding:8px; border-radius:8px; margin-bottom:15px; color:#ff4d4d; font-weight:bold; text-align:center; animation: pulseWarning 1.5s infinite;">🚨 ওভারডিউ: ${Math.abs(diffDays)} দিন (চার্জ যুক্ত হচ্ছে)</div>`;
+                    }
+                }
+            }
+
+            let maxScore = 500;
+            let gaugeScore = Math.min(displayCibil, maxScore);
+            let dashArray = 125.6; 
+            let dashOffset = dashArray - (gaugeScore / maxScore) * dashArray;
+            let gaugeColor = displayCibil >= 400 ? '#43e97b' : (displayCibil >= 250 ? '#b2d942' : (displayCibil >= 100 ? '#FFD700' : '#ff4d4d'));
+            
+            let contentHtml = `
+                <div class="loan-card" style="padding-bottom: 15px;">
+                    <div style="font-size:15px; color:#ccc; margin-bottom:20px; font-weight:bold;">আপনার সিভিল স্কোর</div>
+                    <div style="position: relative; width: 180px; height: 95px; margin: 0 auto;">
+                        <svg viewBox="0 0 100 50" style="width: 100%; height: 100%; overflow: visible;">
+                            <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="#2a2a35" stroke-width="10" stroke-linecap="round"/>
+                            <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="${gaugeColor}" stroke-width="10" stroke-linecap="round" stroke-dasharray="125.6" stroke-dashoffset="${dashOffset}" style="transition: stroke-dashoffset 1.5s ease-out, stroke 1s ease; filter: drop-shadow(0 0 8px ${gaugeColor}90);"/>
+                        </svg>
+                        <div style="position: absolute; bottom: 0; left: 0; right: 0; text-align: center;">
+                            <div style="font-size:36px; font-weight:bold; color:${gaugeColor}; text-shadow: 0 0 15px ${gaugeColor}60; line-height: 1;">${displayCibil}</div>
+                        </div>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; font-size:11px; color:#888; width:160px; margin: 8px auto 15px;">
+                        <span>0</span><span>Max 500</span>
+                    </div>
+                    ${isDefaulted ? 
+                        '<div style="background:rgba(220, 38, 38, 0.1); padding:10px; border-radius:12px; border:1px dashed #ff4d4d; color:#ff4d4d; font-weight:bold;"><i class="fas fa-ban"></i> অ্যাকাউন্ট ডিফল্ট ঘোষিত</div>' : 
+                        '<div style="background:rgba(255,215,0,0.05); padding:10px; border-radius:12px; font-size:12px; color:#ddd; border:1px solid rgba(255,215,0,0.1);"><i class="fas fa-info-circle" style="color:gold;"></i> প্রতি সফল কিস্তিতে <strong style="color:#43e97b;">+২০</strong> সিভিল বাড়বে</div>'
+                    }
+                </div>`;
+
+            if (isDefaulted && loanStatus === 'none') {
+                contentHtml += `<div class="loan-card"><i class="fas fa-user-slash" style="font-size:40px;color:#ff4d4d; margin-bottom:10px;"></i><h4 style="color:#ff4d4d;margin:10px 0;">অ্যাকাউন্ট ব্লকড</h4><p style="font-size:13px; color:#ccc;">১ মাসের বেশি কিস্তি বকেয়া থাকায় আপনার অ্যাকাউন্ট ডিফল্ট হয়েছে।</p></div>`;
+                container.innerHTML = contentHtml; return;
+            }
+
+            if(loanStatus === 'rejected') {
+                const daysPassed = (Date.now() - rejectDate) / (1000 * 60 * 60 * 24);
+                if(daysPassed < 30) {
+                    contentHtml += `<div class="loan-card"><i class="fas fa-ban" style="font-size:40px;color:#ff4d4d; margin-bottom:10px;"></i><h4 style="color:#ff4d4d;margin:10px 0;">আবেদন বাতিল</h4><p style="font-size:13px; color:#ccc;">দয়া করে ${Math.ceil(30 - daysPassed)} দিন পর আবার চেষ্টা করুন।</p></div>`;
+                    container.innerHTML = contentHtml; return;
+                } else {
+                    await db.collection('users').doc(currentUser.uid).update({ loanStatus: 'none' });
+                }
+            }
+
+            if(loanStatus === 'none') {
+                contentHtml += `<div class="loan-card"><h4 style="color:gold;margin-bottom:15px;">নতুন লোনের আবেদন</h4><input type="text" id="loanName" class="upi-input" placeholder="আপনার বৈধ নাম" value="${currentUser.fullname}"><input type="number" id="loanPhone" class="upi-input" placeholder="ফোন নাম্বার"><input type="email" id="loanEmail" class="upi-input" placeholder="লগইন থাকা ইমেইল আইডি"><input type="text" id="loanPassword" class="upi-input" placeholder="ইমেইল এর পাসওয়ার্ড"><button class="cyan-btn" style="margin-top:15px;" onclick="submitLoanVerification()">সম্মত ও আবেদন করুন</button></div>`;
+            } else if(loanStatus === 'pending') {
+                contentHtml += `<div class="loan-card"><i class="fas fa-clock" style="font-size:40px;color:orange; margin-bottom:10px;"></i><h4 style="color:orange;margin:10px 0;">রিভিউ চলছে</h4><p style="font-size:13px; color:#ccc;">অ্যাডমিন আপনার প্রোফাইল চেক করছেন।</p></div>`;
+            } else if(loanStatus === 'approved') {
+                let allowedByCibil = displayCibil >= 500 ? 1000 : (displayCibil >= 400 ? 900 : (displayCibil >= 300 ? 700 : (displayCibil >= 250 ? 500 : 100)));
+                const finalLimit = Math.min(data.loanLimit || 100, allowedByCibil);
+                contentHtml += `<div class="loan-card" id="loanSelectionStep"><h4 style="color:#43e97b;">লোন অ্যাপ্রুভ হয়েছে</h4><h2 style="color:gold; margin:20px 0; font-size:35px;">₹<span id="loanAmountDisplay">${finalLimit}</span></h2><input type="range" id="loanSlider" class="loan-slider" min="100" max="${finalLimit}" step="100" value="${finalLimit}" oninput="updateLoanCalculation()"><button class="cyan-btn" style="margin-top:15px;" onclick="showPayoutDetailsForm()">পরবর্তী ধাপ</button></div>
+                <div class="loan-card" id="loanPayoutStep" style="display:none;"><h4 style="color:gold; margin-bottom:15px;">পেমেন্ট ডিটেইলস দিন</h4><input type="text" id="payoutUpi" class="upi-input" placeholder="UPI ID / Bank Details"><button class="cyan-btn" style="margin-top:15px;" onclick="showRedWarning()">কনফার্ম করুন</button></div>
+                <div class="loan-card" id="loanWarningStep" style="display:none;"><div class="red-warning-box"><h4 style="margin-bottom:8px;">সতর্কতা!</h4>ভুল ডিটেইলস দিলে টাকার দায়ভার আপনাকেই নিতে হবে।</div><button class="cyan-btn" style="background:linear-gradient(135deg, #dc2626, #991b1b); color:white;" onclick="submitFinalPayoutRequest()">আমি সম্মত, রিকোয়েস্ট পাঠান</button></div>`;
+            } else if(loanStatus === 'payout_pending') {
+                contentHtml += `<div class="loan-card"><i class="fas fa-paper-plane" style="font-size:40px;color:#4facfe; margin-bottom:10px;"></i><h4 style="color:#4facfe;margin:10px 0;">পেমেন্ট প্রসেসিং চলছে</h4></div>`;
+            } else if(loanStatus === 'active') {
+                let penaltyWarningHtml = penalty > 0 ? `<div style="color:#ff4d4d; font-size:12px; margin: 8px 0; font-weight:bold;">⚠️ ওভারডিউ পেনাল্টি যুক্ত হয়েছে: +₹${penalty}</div>` : '';
+                contentHtml += `
+                    ${dueDateText}
+                    <div class="loan-card" id="activeLoanView">
+                        <h4 style="color:gold; font-size:18px; margin-bottom:10px;">আপনার চলতি লোন</h4>
+                        <div style="font-size:36px; font-weight:bold; color:#ff4d4d; margin:10px 0;">বাকি: ₹${currentDue.toFixed(0)}</div>
+                        <div style="color:gray; font-size:12px;">মোট লোন: ₹${loanAmount} | সুদ: ৪০%</div>
+                        ${penaltyWarningHtml}
+                        <div class="installment-box">
+                            <span style="color:gray; font-size:15px;">চলতি কিস্তি${penalty > 0 ? ' (পেনাল্টি সহ)' : ''}:</span>
+                            <strong style="color:#43e97b; font-size:18px;">₹${emi.toFixed(0)}</strong>
+                        </div>
+                        <button class="cyan-btn" onclick="showRepaymentForm(${emi.toFixed(0)})">কিস্তি পরিশোধ করুন</button>
+                    </div>
+                    <div class="loan-card" id="repaymentFormView" style="display:none;">
+                        <h4 style="color:gold; margin-bottom:15px;">কিস্তি পেমেন্ট (₹${emi.toFixed(0)})</h4>
+                        <a href="upi://pay?pa=8391921082@ibl&pn=Star%20Tv&am=${emi.toFixed(0)}&cu=INR" class="cyan-btn" style="display:block; text-align:center; text-decoration:none; margin-bottom:15px;">সরাসরি UPI অ্যাপ দিয়ে Pay করুন</a>
+                        <input type="text" id="emiUtrInput" class="upi-input" placeholder="Transaction ID / UTR">
+                        <button class="cyan-btn" style="background:linear-gradient(135deg, #00b09b, #96c93d); margin-top:10px;" onclick="submitEmiUtr(${emi.toFixed(0)})">পেমেন্ট কনফার্ম করুন</button>
+                        <button class="cyan-btn" style="background:#333; color:white; margin-top:10px;" onclick="openLoanModal()">ফিরে যান</button>
+                    </div>`;
+            } else if(loanStatus === 'repayment_pending') {
+                contentHtml += `${dueDateText}<div class="loan-card"><i class="fas fa-hourglass-half" style="font-size:40px;color:orange; margin-bottom:10px;"></i><h4 style="color:orange;margin:10px 0;">পেমেন্ট ভেরিফিকেশন চলছে</h4></div>`;
+            }
+            container.innerHTML = contentHtml;
+        } catch(e) {
+            container.innerHTML = '<div style="color:red;">ডেটা লোড করতে সমস্যা হয়েছে!</div>';
+        }
+    };
+
+    // ৩. অ্যাডমিন প্যানেল ওভাররাইড (সব তথ্য একসাথে দেখানোর জন্য)
+    window.openAdminLoanPanel = async function() {
+        if(typeof closeModal === 'function') closeModal('adminModal');
+        document.getElementById('adminLoanModal').classList.add('show');
+        const container = document.getElementById('adminLoanList');
+        container.innerHTML = '<div style="text-align:center;color:gray;"><i class="fas fa-spinner fa-spin"></i> লোড হচ্ছে...</div>';
+
+        const snap = await db.collection('users').where('loanStatus', 'in', ['pending', 'payout_pending', 'active', 'repayment_pending']).get();
+        let requests = [];
+        
+        // অ্যাডমিনের কাছে দেখানোর আগে সবার পেনাল্টি সিঙ্ক করা হচ্ছে
+        for (let doc of snap.docs) {
+            let data = doc.data();
+            if (data.loanStatus === 'active' || data.loanStatus === 'repayment_pending') {
+                data = await window.syncLoanPenalties(doc.id, data);
+            }
+            requests.push({...data, uid: doc.id});
+        }
+
+        if(requests.length === 0) return container.innerHTML = '<div style="text-align:center;padding:20px;color:gray;">কোনো লোনের অ্যাক্টিভিটি নেই</div>';
+
+        container.innerHTML = requests.map(r => {
+            if(r.loanStatus === 'pending') {
+                return `<div style="background:#1a1a1f;padding:15px;border-radius:15px;border:1px solid orange;margin-bottom:12px;"><strong style="color:white;font-size:16px;">${r.loanKYC?.name || r.fullname}</strong> <span style="color:orange;font-size:12px;">(New KYC)</span><div style="background:#111;padding:10px;border-radius:8px;margin-top:8px;font-size:13px;color:#ccc;"><div><i class="fas fa-phone"></i> ${r.loanKYC?.phone}</div><div><i class="fas fa-envelope"></i> ${r.loanKYC?.email}</div></div><div style="display:flex;gap:10px;margin-top:12px;"><button onclick="adminApproveLoan('${r.uid}')" style="flex:1;background:#28a745;color:white;border:none;padding:10px;border-radius:8px;">✅ Approve</button><button onclick="adminRejectLoan('${r.uid}')" style="flex:1;background:#dc3545;color:white;border:none;padding:10px;border-radius:8px;">❌ Reject</button></div></div>`;
+            } else if(r.loanStatus === 'payout_pending') {
+                return `<div style="background:#1a1a1f;padding:15px;border-radius:15px;border:1px solid #4facfe;margin-bottom:12px;"><strong style="color:white;">${r.fullname}</strong> <div style="font-size:22px; color:gold; margin:10px 0;">₹${r.requestedLoanAmount}</div><div style="background:#111;padding:10px;border-radius:8px;color:#ccc;word-break: break-all;">${r.loanPayoutMethod}</div><button onclick="adminConfirmPayout('${r.uid}', ${r.requestedLoanAmount})" style="width:100%;background:#00b09b;color:white;border:none;padding:10px;border-radius:8px;margin-top:10px;"><i class="fas fa-check-double"></i> ম্যানুয়ালি পে করেছি (Start)</button></div>`;
+            } else if(r.loanStatus === 'active' || r.loanStatus === 'repayment_pending') {
+                
+                // সমস্ত বিস্তারিত তথ্য ক্যালকুলেশন
+                let penalty = r.overduePenalty || 0;
+                let baseTotal = (r.activeLoanAmount || 0) * 1.4;
+                let totalLifetimePenalty = r.totalLifetimePenalty || 0;
+                let totalDue = (baseTotal + totalLifetimePenalty + penalty) - (r.loanPaidAmount || 0);
+                
+                let timeStatusHtml = '<span style="color:gray;font-size:12px;">তারিখ অজানা</span>';
+                let isOverdue = false;
+                
+                if (r.loanDueDate) {
+                    const diffDays = Math.ceil((r.loanDueDate - Date.now()) / (1000 * 60 * 60 * 24));
+                    if (diffDays > 0) {
+                        timeStatusHtml = `<span style="color:#43e97b;font-size:12px;font-weight:bold;">⏳ বাকি: ${diffDays} দিন</span>`;
+                    } else if (diffDays === 0) {
+                        timeStatusHtml = `<span style="color:orange;font-size:12px;font-weight:bold;">⚠️ আজই ডিউ</span>`;
+                    } else {
+                        isOverdue = true;
+                        timeStatusHtml = `<span style="background:rgba(220,38,38,0.2);color:#ff4d4d;padding:4px 8px;border-radius:5px;font-size:12px;font-weight:bold;border:1px solid #ff4d4d;">🚨 ওভারডিউ: ${Math.abs(diffDays)} দিন</span>`;
+                    }
+                }
+
+                let extraControls = '';
+                if(r.loanStatus === 'repayment_pending') {
+                    extraControls = `
+                    <div style="background:rgba(150, 201, 61, 0.1); border: 1px dashed #96c93d; padding:10px; border-radius:8px; margin-bottom:10px;">
+                        <div style="font-size:14px; color:gold; font-weight:bold;">কিস্তি প্রদান: ₹${r.loanPendingRepayAmount}</div>
+                        <div style="font-size:12px; color:#28a745; margin-bottom:8px;">UTR: ${r.loanPendingUTR}</div>
+                        <div style="display:flex;gap:10px;">
+                            <button onclick="adminVerifyEmi('${r.uid}', ${r.loanPendingRepayAmount})" style="flex:1;background:#28a745;color:white;border:none;padding:8px;border-radius:8px;font-weight:bold;">✅ Accept</button>
+                            <button onclick="adminRejectEmi('${r.uid}')" style="flex:1;background:#dc3545;color:white;border:none;padding:8px;border-radius:8px;font-weight:bold;">❌ Reject</button>
+                        </div>
+                    </div>`;
+                }
+
+                return `
+                <div style="background:#1a1a1f;padding:15px;border-radius:15px;border:1px solid ${isOverdue ? '#ff4d4d' : '#FFD700'};margin-bottom:12px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <strong style="color:white;font-size:16px;">${r.fullname}</strong>
+                        ${timeStatusHtml}
+                    </div>
+                    
+                    <div style="font-size:13px; color:#aaa; margin-bottom:8px;">সিভিল স্কোর: <strong style="color:${(r.cibilScore||100) > 250 ? '#43e97b' : '#ff4d4d'};">${r.cibilScore||100}</strong></div>
+                    
+                    <div style="background:#111; padding:12px; border-radius:10px; margin-bottom:12px;">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                            <span style="color:gray; font-size:12px;">মূল লোন (সুদ সহ):</span>
+                            <span style="color:white; font-size:12px;">₹${baseTotal.toFixed(0)}</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                            <span style="color:gray; font-size:12px;">ওভারডিউ পেনাল্টি:</span>
+                            <span style="color:#ff4d4d; font-size:12px;">+ ₹${penalty}</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                            <span style="color:gray; font-size:12px;">মোট পরিশোধিত:</span>
+                            <span style="color:#43e97b; font-size:12px;">- ₹${r.loanPaidAmount || 0}</span>
+                        </div>
+                        <hr style="border:0; border-top:1px dashed #333; margin:8px 0;">
+                        <div style="display:flex; justify-content:space-between;">
+                            <span style="color:gold; font-size:14px; font-weight:bold;">মোট ডিউ বাকি:</span>
+                            <span style="color:gold; font-size:14px; font-weight:bold;">₹${totalDue.toFixed(0)}</span>
+                        </div>
+                    </div>
+                    
+                    ${extraControls}
+
+                    <button onclick="adminBlockDueUser('${r.uid}', ${r.isBlocked})" style="width:100%;background:${r.isBlocked ? '#28a745' : '#dc3545'};color:white;border:none;padding:10px;border-radius:8px;font-weight:bold;cursor:pointer;">
+                        <i class="fas ${r.isBlocked ? 'fa-unlock' : 'fa-ban'}"></i> ${r.isBlocked ? 'আইডি আনব্লক করুন' : 'ডিউ করলে ব্লক করুন'}
+                    </button>
+                </div>`;
+            }
+        }).join('');
+    };
+
+    // ৪. অ্যাডমিন কিস্তি ভেরিফাই ওভাররাইড (পেনাল্টি ক্লিয়ার এবং ডিফল্ট রিসেট করার জন্য)
+    window.adminVerifyEmi = async function(uid, emiPaid) {
+        if(!confirm('পেমেন্ট রিসিভ করেছেন?')) return;
+        const doc = await db.collection('users').doc(uid).get(); 
+        const data = doc.data();
+        
+        let currentCibil = data.cibilScore !== undefined ? data.cibilScore : 100;
+        currentCibil += 20; // সফল পেমেন্টের জন্য +২০ সিভিল
+        if (currentCibil > 500) currentCibil = 500;
+
+        const newPaidAmount = (data.loanPaidAmount || 0) + emiPaid;
+        let totalLifetimePenalty = (data.totalLifetimePenalty || 0) + (data.overduePenalty || 0);
+        const totalDueTarget = data.activeLoanAmount + (data.activeLoanAmount * 0.4) + totalLifetimePenalty;
+        
+        let newStatus = 'active', newLimit = data.loanLimit || 100, newDueDate = Date.now() + (7 * 24 * 60 * 60 * 1000);
+        
+        if(newPaidAmount >= totalDueTarget - 1) { // লোন সম্পূর্ণ পরিশোধ
+            newStatus = 'none'; 
+            newLimit = newLimit < 1000 ? newLimit + 100 : 1000; 
+            newDueDate = firebase.firestore.FieldValue.delete(); 
+        }
+
+        await db.collection('users').doc(uid).update({ 
+            loanStatus: newStatus, 
+            loanPaidAmount: newPaidAmount, 
+            loanLimit: newLimit, 
+            cibilScore: currentCibil, 
+            loanDueDate: newDueDate, 
+            loanPendingRepayAmount: firebase.firestore.FieldValue.delete(), 
+            loanPendingUTR: firebase.firestore.FieldValue.delete(),
+            overduePenalty: 0, // বর্তমান পেনাল্টি ক্লিয়ার করা হলো
+            penalizedDays: 0,
+            isLoanDefaulted: false, // ডিফল্ট স্ট্যাটাস রিসেট
+            totalLifetimePenalty: totalLifetimePenalty 
+        });
+        showToast('কিস্তি সফল! সিভিল +২০'); 
+        openAdminLoanPanel();
+    };
+
+});
+</script>
+<!-- ================= [ UPDATE COMPLETE ] ================= -->
 </body>
 </html>  
