@@ -4092,32 +4092,132 @@ document.addEventListener("DOMContentLoaded", () => {
 
 });
 </script>
-  <!-- স্প্ল্যাশ স্ক্রিন আটকে যাওয়ার ফিক্স (ফোর্স বাইপাস) -->
+  <!-- ================= [ SPEED & PERFORMANCE OPTIMIZATION (ALL IN ONE) ] ================= -->
 <script>
-    document.addEventListener("DOMContentLoaded", function() {
-        // সর্বোচ্চ ২.৫ সেকেন্ড (2500ms) অপেক্ষা করবে, এরপর স্প্ল্যাশ স্ক্রিন সরিয়ে দেবে
-        setTimeout(function() {
-            var splash = document.getElementById('starSplash');
+(function optimizeAppSpeed() {
+    // ১. ফায়ারবেস অফলাইন পারসিস্টেন্স (Local Caching)
+    // এটি ফায়ারবেসকে নির্দেশ দেয় যেন ডেটা প্রথমে ফোনের লোকাল ক্যাশ থেকে লোড হয়, এতে ডেটা অনেক ফাস্ট আসে।
+    try {
+        if (typeof db !== 'undefined') {
+            db.enablePersistence({ synchronizeTabs: true })
+              .catch(err => console.warn("Persistence Error:", err.code));
+        }
+    } catch(e) {}
+
+    // ২. স্প্ল্যাশ স্ক্রিন ফিক্স (অযথা ১.৫ সেকেন্ড অপেক্ষা বন্ধ করা)
+    if (typeof auth !== 'undefined') {
+        auth.onAuthStateChanged((user) => {
+            const splash = document.getElementById('starSplash');
             if (splash) {
-                splash.style.opacity = '0'; // ফেড আউট অ্যানিমেশন
-                setTimeout(function() {
-                    splash.remove(); // DOM থেকে পুরোপুরি মুছে ফেলা
-                }, 500);
+                // ফায়ারবেস লোড হওয়ার সাথে সাথেই স্প্ল্যাশ স্ক্রিন গায়েব হয়ে যাবে
+                splash.style.opacity = '0';
+                document.body.classList.remove('loading-splash');
+                setTimeout(() => splash.remove(), 300);
             }
             
-            // বডি থেকে loading-splash ক্লাসটি সরিয়ে মূল কন্টেন্ট ভিজিবল করা
-            document.body.classList.remove('loading-splash');
-            
-            // ফায়ারবেস অথেন্টিকেশন লোড হতে দেরি হলে জোরপূর্বক লগিন স্ক্রিন দেখানো
-            var loginScreen = document.getElementById('loginScreen');
-            var appScreen = document.getElementById('appScreen');
-            
-            if (loginScreen && !appScreen.classList.contains('show')) {
-                loginScreen.style.opacity = '1';
-                loginScreen.style.visibility = 'visible';
+            // ৩. ব্যাকগ্রাউন্ড লোড কমানো: শুধুমাত্র ইউজার লগইন থাকলেই টিকিটের দাম লোড হবে
+            if (user && typeof loadTicketPrice === 'function') {
+                setTimeout(() => loadTicketPrice(), 1000);
             }
-        }, 2500); // আপনি চাইলে 2500 এর জায়গায় 2000 (২ সেকেন্ড) করে দিতে পারেন
+        });
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        // ৪. সাধারণ লগইন ফাংশনে Lazy Loading (UI ফ্রিজ রোধ করতে)
+        if (typeof window.handleLogin === 'function') {
+            window.handleLogin = async function() {
+                const username = document.getElementById('loginUsername').value.trim();
+                const password = document.getElementById('loginPassword').value.trim();
+                if (!username || !password) return showToast('সব ঘর পূরণ করুন');
+                
+                const btn = document.getElementById('loginBtn');
+                btn.classList.add('loading');
+                btn.querySelector('i.fa-spinner').style.display = 'inline-block';
+                btn.querySelector('span').textContent = 'লগিন হচ্ছে...';
+                
+                try {
+                    const email = username + "@startv.com";
+                    const cred = await auth.signInWithEmailAndPassword(email, password);
+                    const userDoc = await db.collection('users').doc(cred.user.uid).get();
+                    
+                    if (!userDoc.exists) { await auth.signOut(); showToast('ইউজার পাওয়া যায়নি'); return; }
+                    currentUser = userDoc.data();
+                    currentUser.uid = cred.user.uid;
+                    updateUI();
+                    
+                    // ড্যাশবোর্ড সাথে সাথে ওপেন হবে (ডেটার জন্য স্ক্রিন আটকে থাকবে না)
+                    document.getElementById('loginScreen').classList.add('hide');
+                    document.getElementById('appScreen').classList.add('show');
+                    showToast(`স্বাগতম ${currentUser.fullname}`);
+                    
+                    // ৫. ভারী ডেটা ফেচিং (লিসেনার) ৫০০ মিলি-সেকেন্ড পরে ব্যাকগ্রাউন্ডে লোড হবে
+                    setTimeout(() => {
+                        setupRealtimeListeners();
+                        setupNotificationListener();
+                    }, 500);
+                    
+                } catch (err) {
+                    showToast('ভুল ইউজারনেম বা পাসওয়ার্ড');
+                } finally {
+                    btn.classList.remove('loading');
+                    btn.querySelector('i.fa-spinner').style.display = 'none';
+                    btn.querySelector('span').textContent = 'লগিন';
+                }
+            };
+        }
+
+        // গুগল লগইনেও Lazy Loading যুক্ত করা
+        if (typeof window.handleGoogleLogin === 'function') {
+            window.handleGoogleLogin = async function() {
+                const btn = document.getElementById('googleLoginBtn');
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> লগইন হচ্ছে...';
+                btn.style.opacity = '0.7';
+                
+                try {
+                    const result = await firebase.auth().signInWithPopup(googleProvider);
+                    const user = result.user;
+                    const userDoc = await db.collection('users').doc(user.uid).get();
+                    
+                    if (!userDoc.exists) {
+                        const newUser = { 
+                            fullname: user.displayName || "Google User", 
+                            username: (user.email ? user.email.split('@')[0] : "user" + Math.floor(Math.random() * 10000)), 
+                            wallet: 0, 
+                            points: { total: 0, purchase: 0, referral: 0, admin: 0 }, 
+                            transactions: [], joinDate: new Date().toLocaleString(), 
+                            isAdmin: false, isBlocked: false, profilePic: user.photoURL || ""
+                        };
+                        await db.collection('users').doc(user.uid).set(newUser);
+                        currentUser = newUser;
+                    } else {
+                        currentUser = userDoc.data();
+                    }
+                    
+                    currentUser.uid = user.uid;
+                    updateUI();
+                    
+                    // UI সাথে সাথে আপডেট হয়ে যাবে
+                    document.getElementById('loginScreen').classList.add('hide');
+                    document.getElementById('appScreen').classList.add('show');
+                    showToast('লগইন সফল!');
+                    
+                    // ভারী কাজগুলো ব্যাকগ্রাউন্ডে হবে
+                    setTimeout(() => {
+                        setupRealtimeListeners();
+                        setupNotificationListener();
+                    }, 500);
+                    
+                } catch (error) {
+                    showToast('লগইন বাতিল বা ব্যর্থ হয়েছে');
+                } finally {
+                    btn.innerHTML = originalText;
+                    btn.style.opacity = '1';
+                }
+            };
+        }
     });
+})();
 </script>
 </body>
 </html>  
