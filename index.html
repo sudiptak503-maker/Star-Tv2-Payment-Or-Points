@@ -4092,5 +4092,32 @@ document.addEventListener("DOMContentLoaded", () => {
 
 });
 </script>
+  <!-- স্প্ল্যাশ স্ক্রিন আটকে যাওয়ার ফিক্স (ফোর্স বাইপাস) -->
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // সর্বোচ্চ ২.৫ সেকেন্ড (2500ms) অপেক্ষা করবে, এরপর স্প্ল্যাশ স্ক্রিন সরিয়ে দেবে
+        setTimeout(function() {
+            var splash = document.getElementById('starSplash');
+            if (splash) {
+                splash.style.opacity = '0'; // ফেড আউট অ্যানিমেশন
+                setTimeout(function() {
+                    splash.remove(); // DOM থেকে পুরোপুরি মুছে ফেলা
+                }, 500);
+            }
+            
+            // বডি থেকে loading-splash ক্লাসটি সরিয়ে মূল কন্টেন্ট ভিজিবল করা
+            document.body.classList.remove('loading-splash');
+            
+            // ফায়ারবেস অথেন্টিকেশন লোড হতে দেরি হলে জোরপূর্বক লগিন স্ক্রিন দেখানো
+            var loginScreen = document.getElementById('loginScreen');
+            var appScreen = document.getElementById('appScreen');
+            
+            if (loginScreen && !appScreen.classList.contains('show')) {
+                loginScreen.style.opacity = '1';
+                loginScreen.style.visibility = 'visible';
+            }
+        }, 2500); // আপনি চাইলে 2500 এর জায়গায় 2000 (২ সেকেন্ড) করে দিতে পারেন
+    });
+</script>
 </body>
 </html>  
