@@ -2644,8 +2644,7 @@
     };
 })();
 </script>
-<!-- ================= [ ALL-IN-ONE OVERRIDE & SHORTCUT UPGRADE END ] ================= -->
-<!-- ================= [ EARNING TASKS + PLAY STORE DIRECT + SEPARATE ADMIN TAB START ] ================= -->
+<!-- ================= [ EARNING TASKS + SKETCHWARE NATIVE PLAY STORE LAUNCHER START ] ================= -->
 <style>
     .ref-section-header {
         font-size: 17px;
@@ -2756,9 +2755,6 @@
     .playstore-direct-btn:active {
         transform: scale(0.97);
     }
-    .playstore-direct-btn i.fa-google-play {
-        font-size: 18px;
-    }
     .ref-track-box {
         margin-top: 12px;
         padding: 12px 14px;
@@ -2793,7 +2789,6 @@
 
 <script>
 (function initStandaloneTaskSystem() {
-    // ৬টি অ্যাপের সম্পূর্ণ তালিকা ও সরাসরি HTTPS Play Store লিংক (market:// এরর মুক্ত)
     const TASK_OFFERS = [
         {
             key: 'pocket_money',
@@ -2802,8 +2797,9 @@
             coins: 300,
             rupees: 3,
             code: 'udizxM',
+            pkg: 'com.pokkt.app.pocketmoney',
             playStoreUrl: 'https://play.google.com/store/apps/details?id=com.pokkt.app.pocketmoney',
-            refPingUrl: 'http://the-pocket-money.com/pm/8926e91906100f914c4346e78d5252d6',
+            refUrl: 'http://the-pocket-money.com/pm/8926e91906100f914c4346e78d5252d6',
             icon: 'fa-wallet',
             iconBg: 'rgba(16,185,129,0.15)',
             iconColor: '#10b981',
@@ -2816,8 +2812,9 @@
             coins: 100,
             rupees: 1,
             code: '',
+            pkg: 'com.mrewards.app',
             playStoreUrl: 'https://play.google.com/store/apps/details?id=com.mrewards.app&referrer=utm_source%3Drefer%26utm_medium%3DQf0tnTCiba',
-            refPingUrl: 'https://mrewards.app/?uid=Qf0tnTCiba',
+            refUrl: 'https://mrewards.app/?uid=Qf0tnTCiba',
             icon: 'fa-award',
             iconBg: 'rgba(239,68,68,0.15)',
             iconColor: '#ef4444',
@@ -2830,8 +2827,9 @@
             coins: 5000,
             rupees: 50,
             code: '',
+            pkg: 'com.meesho.supply',
             playStoreUrl: 'https://play.google.com/store/apps/details?id=com.meesho.supply',
-            refPingUrl: 'https://app.meesho.com/2yoV/r99th0qd?via=70mnvl&from=account_section',
+            refUrl: 'https://app.meesho.com/2yoV/r99th0qd?via=70mnvl&from=account_section',
             icon: 'fa-shopping-bag',
             iconBg: 'rgba(236,72,153,0.15)',
             iconColor: '#ec4899',
@@ -2844,8 +2842,9 @@
             coins: 5000,
             rupees: 50,
             code: '',
+            pkg: 'com.phonepe.app',
             playStoreUrl: 'https://play.google.com/store/apps/details?id=com.phonepe.app',
-            refPingUrl: 'https://phon.pe/sajlhx89',
+            refUrl: 'https://phon.pe/sajlhx89',
             icon: 'fa-mobile-alt',
             iconBg: 'rgba(168,85,247,0.15)',
             iconColor: '#a855f7',
@@ -2858,8 +2857,9 @@
             coins: 4000,
             rupees: 40,
             code: '8391921082ibl',
+            pkg: 'net.one97.paytm',
             playStoreUrl: 'https://play.google.com/store/apps/details?id=net.one97.paytm',
-            refPingUrl: 'https://p.paytm.me/xCTH/3ch164xa?utmt=111512',
+            refUrl: 'https://p.paytm.me/xCTH/3ch164xa?utmt=111512',
             icon: 'fa-rupee-sign',
             iconBg: 'rgba(59,130,246,0.15)',
             iconColor: '#3b82f6',
@@ -2872,8 +2872,9 @@
             coins: 5000,
             rupees: 50,
             code: '',
+            pkg: 'com.naviapp',
             playStoreUrl: 'https://play.google.com/store/apps/details?id=com.naviapp',
-            refPingUrl: 'https://r.navi.com/rbszIB',
+            refUrl: 'https://r.navi.com/rbszIB',
             icon: 'fa-shield-alt',
             iconBg: 'rgba(245,158,11,0.15)',
             iconColor: '#f59e0b',
@@ -2881,7 +2882,6 @@
         }
     ];
 
-    // ১. রেফারেল কোড কপি ফাংশন
     window.copyTaskRefCode = function(codeText) {
         try {
             const tempInput = document.createElement('textarea');
@@ -2898,7 +2898,32 @@
         if (typeof showToast === 'function') showToast('✅ রেফারেল কোড কপি হয়েছে: ' + codeText);
     };
 
-    // ২. আর্নিং পেজে অফার কার্ড এবং ডেডিকেটেড "Track the History" সেকশন তৈরি
+    // Sketchware WebView থেকে সরাসরি আসল Play Store অ্যাপ ওপেন করার লঞ্চার
+    function launchRealPlayStoreApp(offer) {
+        // ১. যদি Sketchware-এ জাভাস্ক্রিপ্ট ইন্টারফেস (Android.openExternal) দেওয়া থাকে
+        if (window.Android && typeof window.Android.openExternal === 'function') {
+            window.Android.openExternal(offer.playStoreUrl);
+            return;
+        }
+
+        // ২. ব্রাউজার বা মাল্টি-উইন্ডো সাপোর্টেড WebView-এর জন্য নতুন পপআপ উইন্ডো (যা অ্যান্ড্রয়েড ওএস ইন্টারসেপ্ট করে সরাসরি Play Store অ্যাপ খোলে)
+        const win = window.open(offer.playStoreUrl, '_system');
+        if (win) return;
+
+        // ৩. ব্যাকগ্রাউন্ডে রেফারেল পিং করে এক্সটার্নাল ইনটেন্ট ওপেন
+        if (offer.refUrl) {
+            try { fetch(offer.refUrl, { mode: 'no-cors' }).catch(() => {}); } catch (e) {}
+        }
+
+        const link = document.createElement('a');
+        link.href = offer.playStoreUrl;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer external';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
     function injectEarningTaskCards() {
         const earningSection = document.getElementById('section-earning');
         if (!earningSection) return;
@@ -2913,7 +2938,6 @@
         wrapper.id = 'customReferralOffersContainer';
 
         let html = `
-            <!-- ডেডিকেটেড Track the History কার্ড (টাস্কে ক্লিক করা মাত্রই এখানে ও কার্ডে হিস্ট্রি দেখাবে) -->
             <div id="mainTaskTrackHistoryCard" class="card" style="display:none; border-color:var(--gold-light); background:#111827;">
                 <div class="card-title" style="margin-bottom:8px;">
                     <i class="fas fa-history"></i> Track the History (টাস্ক হিস্ট্রি)
@@ -2956,9 +2980,9 @@
                     </div>
                     <div class="ref-rule-desc">${offer.desc}</div>
                     ${codeHtml}
-                    <a id="taskPlayBtn_${offer.key}" href="${offer.playStoreUrl}" target="_blank" rel="noopener noreferrer" class="playstore-direct-btn" onclick="return onTaskPlayStoreClick(event, '${offer.key}')">
+                    <button type="button" id="taskPlayBtn_${offer.key}" class="playstore-direct-btn" onclick="handleTaskPlayStoreLaunch('${offer.key}')">
                         <i class="fab fa-google-play"></i> প্লে স্টোরে যান (${offer.coins} Coins)
-                    </a>
+                    </button>
                     <div id="inlineTrackBox_${offer.key}" class="ref-track-box"></div>
                 </div>
             `;
@@ -2975,28 +2999,20 @@
         renderUserTaskTrackingUI();
     }
 
-    // ৩. টাস্ক বাটনে ক্লিক করা মাত্রই হিস্ট্রি তৈরি + এডমিন প্যানেলে পাঠানো + প্লে স্টোর ওপেন
-    window.onTaskPlayStoreClick = function(event, offerKey) {
+    window.handleTaskPlayStoreLaunch = function(offerKey) {
         const offer = TASK_OFFERS.find(o => o.key === offerKey);
-        if (!offer) return true;
+        if (!offer) return;
 
         if (!currentUser) {
-            event.preventDefault();
             if (typeof showToast === 'function') showToast('আগে আপনার একাউন্টে লগইন করুন!');
-            return false;
-        }
-
-        // ব্যাকগ্রাউন্ডে রেফারেল লিংক পিং করা (যাতে রেফারেল কাউন্ট হয় কিন্তু market:// এরর না আসে)
-        if (offer.refPingUrl) {
-            try { fetch(offer.refPingUrl, { mode: 'no-cors' }).catch(() => {}); } catch (e) {}
+            return;
         }
 
         const tasksMap = Object.assign({}, currentUser.earningTaskRequests || {});
         const existing = tasksMap[offerKey];
 
-        // যদি নতুন টাস্ক হয় অথবা আগে অ্যাডমিন দ্বারা Rejected হয়ে থাকে, সাথে সাথে Pending হিস্ট্রি তৈরি হবে
         if (!existing || existing.status === 'Rejected') {
-            const newRecord = {
+            tasksMap[offerKey] = {
                 offerKey: offer.key,
                 appName: offer.name,
                 coins: offer.coins,
@@ -3006,13 +3022,9 @@
                 dateString: new Date().toLocaleString('bn-BD')
             };
 
-            tasksMap[offerKey] = newRecord;
             currentUser.earningTaskRequests = tasksMap;
-
-            // ক্লিক করা মাত্রই (০ সেকেন্ডে) ইউজারের স্ক্রিনে Track the History দেখানো
             renderUserTaskTrackingUI();
 
-            // ফায়ারবেসে ইউজারের প্রোফাইলে সেভ করা (যা অ্যাডমিনের আলাদা টাস্ক সেকশনে চলে যাবে)
             db.collection('users').doc(currentUser.uid).update({
                 earningTaskRequests: tasksMap
             }).catch(err => console.error(err));
@@ -3022,11 +3034,9 @@
             }
         }
 
-        // সরাসরি HTTPS Play Store লিংক ওপেন করা (কোনো market:// এরর আসবে না)
-        return true;
+        launchRealPlayStoreApp(offer);
     };
 
-    // ৪. ইউজারের স্ক্রিনে Track the History রেন্ডার করা (কার্ডের ভেতরে + উপরে হিস্ট্রি বক্সে)
     function renderUserTaskTrackingUI() {
         if (!currentUser) return;
         const tasksMap = currentUser.earningTaskRequests || {};
@@ -3046,7 +3056,6 @@
                 inlineBox.className = 'ref-track-box';
                 inlineBox.innerHTML = '';
                 playBtn.style.opacity = '1';
-                playBtn.style.pointerEvents = 'auto';
                 playBtn.innerHTML = `<i class="fab fa-google-play"></i> প্লে স্টোরে যান (${offer.coins} Coins)`;
                 return;
             }
@@ -3130,7 +3139,6 @@
         }
     }
 
-    // ৫. এডমিন প্যানেলে সম্পূর্ণ আলাদা ৫ম ট্যাব "টাস্ক যাচাই" যুক্ত করা
     function injectSeparateAdminTaskTab() {
         const adminTabsContainer = document.querySelector('#adminModal .admin-nav-tabs');
         if (adminTabsContainer && !document.getElementById('admTabTasks')) {
@@ -3143,7 +3151,6 @@
         }
     }
 
-    // switchAdminTab ওভাররাইড করে আলাদা 'tasks' সেকশন হ্যান্ডেল করা
     const origSwitchAdminTab = window.switchAdminTab;
     window.switchAdminTab = function(tab) {
         injectSeparateAdminTaskTab();
@@ -3160,7 +3167,6 @@
         }
     };
 
-    // ৬. এডমিন প্যানেলের আলাদা "টাস্ক যাচাই" সেকশন লোড করা
     window.loadSeparateAdminTasks = async function() {
         const container = document.getElementById('adminPanelBodyContent');
         if (!container) return;
@@ -3248,7 +3254,6 @@
         }
     };
 
-    // ৭. অ্যাডমিন টাস্ক Approve ও Reject ফাংশন
     window.adminConfirmUserTask = async function(uid, offerKey, rupeeAmount) {
         try {
             const uRef = db.collection('users').doc(uid);
@@ -3303,7 +3308,6 @@
         }
     };
 
-    // ৮. ইউজারের রিয়েলটাইম আপডেটের সাথে হিস্ট্রি সিঙ্ক রাখা
     const origUpdateUI = window.updateUI;
     window.updateUI = function() {
         if (typeof origUpdateUI === 'function') origUpdateUI();
@@ -3322,7 +3326,7 @@
     }
 })();
 </script>
-<!-- ================= [ EARNING TASKS + PLAY STORE DIRECT + SEPARATE ADMIN TAB END ] ================= -->
+<!-- ================= [ EARNING TASKS + SKETCHWARE NATIVE PLAY STORE LAUNCHER END ] ================= -->
 
 </body>
 </html>
