@@ -2645,6 +2645,684 @@
 })();
 </script>
 <!-- ================= [ ALL-IN-ONE OVERRIDE & SHORTCUT UPGRADE END ] ================= -->
+<!-- ================= [ EARNING TASKS + PLAY STORE DIRECT + SEPARATE ADMIN TAB START ] ================= -->
+<style>
+    .ref-section-header {
+        font-size: 17px;
+        font-weight: 800;
+        color: var(--gold-light);
+        margin: 22px 0 14px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .ref-offer-card {
+        background: linear-gradient(145deg, #151c2c, #111827);
+        border: 1px solid var(--border-color);
+        border-radius: 18px;
+        padding: 16px;
+        margin-bottom: 14px;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+    }
+    .ref-top-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 12px;
+    }
+    .ref-app-meta {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    .ref-app-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 13px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        flex-shrink: 0;
+    }
+    .ref-coin-pill {
+        background: var(--gold-gradient);
+        color: #0b0f19;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-weight: 800;
+        font-size: 12px;
+        white-space: nowrap;
+        box-shadow: 0 0 12px rgba(251, 191, 36, 0.35);
+    }
+    .ref-rule-desc {
+        font-size: 13px;
+        color: #cbd5e1;
+        line-height: 1.55;
+        margin-bottom: 12px;
+    }
+    .ref-code-copy-box {
+        background: #0b0f19;
+        border: 1.5px dashed var(--gold-light);
+        border-radius: 12px;
+        padding: 9px 14px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+        cursor: pointer;
+        user-select: none;
+    }
+    .ref-code-copy-box:active {
+        background: rgba(251, 191, 36, 0.12);
+    }
+    .ref-code-val {
+        font-family: monospace;
+        font-size: 15px;
+        font-weight: 800;
+        color: var(--gold-light);
+        letter-spacing: 1px;
+    }
+    .ref-copy-badge {
+        background: rgba(251, 191, 36, 0.15);
+        color: var(--gold-light);
+        padding: 4px 10px;
+        border-radius: 8px;
+        font-size: 11px;
+        font-weight: bold;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .playstore-direct-btn {
+        width: 100%;
+        padding: 12px 14px;
+        background: linear-gradient(135deg, #10b981, #059669);
+        color: #ffffff !important;
+        border: none;
+        border-radius: 14px;
+        font-size: 14px;
+        font-weight: 800;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 9px;
+        text-decoration: none !important;
+        box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+        transition: transform 0.15s ease;
+    }
+    .playstore-direct-btn:active {
+        transform: scale(0.97);
+    }
+    .playstore-direct-btn i.fa-google-play {
+        font-size: 18px;
+    }
+    .ref-track-box {
+        margin-top: 12px;
+        padding: 12px 14px;
+        border-radius: 12px;
+        font-size: 12px;
+        line-height: 1.55;
+        display: none;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        font-weight: 600;
+    }
+    .ref-track-box.show {
+        display: flex;
+    }
+    .ref-track-pending {
+        background: rgba(245, 158, 11, 0.12);
+        border: 1px solid rgba(245, 158, 11, 0.45);
+        color: #fbbf24;
+    }
+    .ref-track-success {
+        background: rgba(16, 185, 129, 0.15);
+        border: 1px solid rgba(16, 185, 129, 0.55);
+        color: #34d399;
+    }
+    .ref-track-rejected {
+        background: rgba(239, 68, 68, 0.15);
+        border: 1px solid rgba(239, 68, 68, 0.55);
+        color: #f87171;
+    }
+</style>
+
+<script>
+(function initStandaloneTaskSystem() {
+    // ৬টি অ্যাপের সম্পূর্ণ তালিকা ও সরাসরি HTTPS Play Store লিংক (market:// এরর মুক্ত)
+    const TASK_OFFERS = [
+        {
+            key: 'pocket_money',
+            name: 'Pocket Money',
+            subtitle: 'ডাউনলোড ও রেজিস্ট্রেশন (300 Coins = ₹3)',
+            coins: 300,
+            rupees: 3,
+            code: 'udizxM',
+            playStoreUrl: 'https://play.google.com/store/apps/details?id=com.pokkt.app.pocketmoney',
+            refPingUrl: 'http://the-pocket-money.com/pm/8926e91906100f914c4346e78d5252d6',
+            icon: 'fa-wallet',
+            iconBg: 'rgba(16,185,129,0.15)',
+            iconColor: '#10b981',
+            desc: 'নিচের প্লে স্টোর বাটনে ক্লিক করে অ্যাপটি ডাউনলোড করুন এবং রেজিস্ট্রেশনের সময় রেফারেল কোডটি ব্যবহার করলেই পাবেন <strong>৩০০ কয়েন (₹৩)</strong>!'
+        },
+        {
+            key: 'mrewards',
+            name: 'mRewards',
+            subtitle: 'ডাউনলোড ও রেজিস্ট্রেশন (100 Coins = ₹1)',
+            coins: 100,
+            rupees: 1,
+            code: '',
+            playStoreUrl: 'https://play.google.com/store/apps/details?id=com.mrewards.app&referrer=utm_source%3Drefer%26utm_medium%3DQf0tnTCiba',
+            refPingUrl: 'https://mrewards.app/?uid=Qf0tnTCiba',
+            icon: 'fa-award',
+            iconBg: 'rgba(239,68,68,0.15)',
+            iconColor: '#ef4444',
+            desc: 'নিচের প্লে স্টোর বাটনে ক্লিক করে অ্যাপ ডাউনলোড করে শুধু রেজিস্ট্রেশন করলেই ইনস্ট্যান্ট পেয়ে যাবেন <strong>১০০ কয়েন (₹১)</strong>।'
+        },
+        {
+            key: 'meesho',
+            name: 'Meesho',
+            subtitle: 'প্রথম অর্ডার সম্পন্ন (5000 Coins = ₹50)',
+            coins: 5000,
+            rupees: 50,
+            code: '',
+            playStoreUrl: 'https://play.google.com/store/apps/details?id=com.meesho.supply',
+            refPingUrl: 'https://app.meesho.com/2yoV/r99th0qd?via=70mnvl&from=account_section',
+            icon: 'fa-shopping-bag',
+            iconBg: 'rgba(236,72,153,0.15)',
+            iconColor: '#ec4899',
+            desc: 'প্রথমবারের জন্য ডাউনলোড করে ফোন নাম্বার দিয়ে লগইন করুন এবং প্রথম অর্ডার সম্পন্ন করলেই পেয়ে যাবেন <strong>৫০০০ কয়েন (₹৫০)</strong>!'
+        },
+        {
+            key: 'phonepe',
+            name: 'PhonePe',
+            subtitle: 'প্রথম UPI ট্রানজেকশন ₹১০+ (5000 Coins = ₹50)',
+            coins: 5000,
+            rupees: 50,
+            code: '',
+            playStoreUrl: 'https://play.google.com/store/apps/details?id=com.phonepe.app',
+            refPingUrl: 'https://phon.pe/sajlhx89',
+            icon: 'fa-mobile-alt',
+            iconBg: 'rgba(168,85,247,0.15)',
+            iconColor: '#a855f7',
+            desc: 'প্রথমবারের জন্য প্লে স্টোর থেকে অ্যাপ ডাউনলোড করে ব্যাঙ্ক অ্যাকাউন্ট অ্যাড করে ন্যূনতম ₹১০-এর প্রথম UPI ট্রানজেকশন করলেই পাবেন <strong>৫০০০ কয়েন (₹৫০)</strong>!'
+        },
+        {
+            key: 'paytm',
+            name: 'Paytm',
+            subtitle: 'প্রথম UPI পেমেন্ট ₹১০+ (4000 Coins = ₹40)',
+            coins: 4000,
+            rupees: 40,
+            code: '8391921082ibl',
+            playStoreUrl: 'https://play.google.com/store/apps/details?id=net.one97.paytm',
+            refPingUrl: 'https://p.paytm.me/xCTH/3ch164xa?utmt=111512',
+            icon: 'fa-rupee-sign',
+            iconBg: 'rgba(59,130,246,0.15)',
+            iconColor: '#3b82f6',
+            desc: 'প্লে স্টোর থেকে ডাউনলোড করে সাইন-আপ ও রেফারেল কোড ব্যবহার করুন। ৭ দিনের মধ্যে ₹১০-এর ওপরে প্রথম UPI পেমেন্ট করলেই পাবেন <strong>৪০০০ কয়েন (₹৪০)</strong> + পেটিএম থেকে <strong>₹১৫ ক্যাশব্যাক</strong>!'
+        },
+        {
+            key: 'navi',
+            name: 'Navi UPI',
+            subtitle: 'প্রথম UPI পেমেন্ট সম্পন্ন (5000 Coins = ₹50)',
+            coins: 5000,
+            rupees: 50,
+            code: '',
+            playStoreUrl: 'https://play.google.com/store/apps/details?id=com.naviapp',
+            refPingUrl: 'https://r.navi.com/rbszIB',
+            icon: 'fa-shield-alt',
+            iconBg: 'rgba(245,158,11,0.15)',
+            iconColor: '#f59e0b',
+            desc: 'নিচের প্লে স্টোর বাটনে ক্লিক করে Navi অ্যাপ ডাউনলোড করে প্রথম UPI পেমেন্ট টাস্কটি সম্পন্ন করলেই পাবেন <strong>৫০০০ কয়েন (₹৫০)</strong>!'
+        }
+    ];
+
+    // ১. রেফারেল কোড কপি ফাংশন
+    window.copyTaskRefCode = function(codeText) {
+        try {
+            const tempInput = document.createElement('textarea');
+            tempInput.value = codeText;
+            tempInput.style.position = 'fixed';
+            tempInput.style.opacity = '0';
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+        } catch (e) {
+            if (navigator.clipboard) navigator.clipboard.writeText(codeText);
+        }
+        if (typeof showToast === 'function') showToast('✅ রেফারেল কোড কপি হয়েছে: ' + codeText);
+    };
+
+    // ২. আর্নিং পেজে অফার কার্ড এবং ডেডিকেটেড "Track the History" সেকশন তৈরি
+    function injectEarningTaskCards() {
+        const earningSection = document.getElementById('section-earning');
+        if (!earningSection) return;
+
+        const oldContainer = document.getElementById('customReferralOffersContainer');
+        if (oldContainer) oldContainer.remove();
+
+        const allCards = earningSection.querySelectorAll('.card');
+        const comingSoonCard = allCards.length > 1 ? allCards[allCards.length - 1] : null;
+
+        const wrapper = document.createElement('div');
+        wrapper.id = 'customReferralOffersContainer';
+
+        let html = `
+            <!-- ডেডিকেটেড Track the History কার্ড (টাস্কে ক্লিক করা মাত্রই এখানে ও কার্ডে হিস্ট্রি দেখাবে) -->
+            <div id="mainTaskTrackHistoryCard" class="card" style="display:none; border-color:var(--gold-light); background:#111827;">
+                <div class="card-title" style="margin-bottom:8px;">
+                    <i class="fas fa-history"></i> Track the History (টাস্ক হিস্ট্রি)
+                </div>
+                <p style="font-size:12px; color:#94a3b8; margin-bottom:12px;">
+                    আপনার ক্লিক করা টাস্কগুলোর লাইভ অ্যাডমিন কনফার্মেশন স্ট্যাটাস নিচে দেখুন:
+                </p>
+                <div id="mainTaskTrackHistoryList"></div>
+            </div>
+
+            <div class="ref-section-header">
+                <i class="fab fa-google-play" style="color:#10b981;"></i> প্লে স্টোর টাস্ক অফার (১০০ কয়েন = ₹১)
+            </div>
+        `;
+
+        TASK_OFFERS.forEach(offer => {
+            const codeHtml = offer.code ? `
+                <div class="ref-code-copy-box" onclick="copyTaskRefCode('${offer.code}')">
+                    <div>
+                        <span style="font-size:11px; color:#94a3b8; display:block;">রেফারেল কোড (ট্যাপ করে কপি করুন):</span>
+                        <span class="ref-code-val">${offer.code}</span>
+                    </div>
+                    <span class="ref-copy-badge"><i class="fas fa-copy"></i> Copy Code</span>
+                </div>
+            ` : '';
+
+            html += `
+                <div class="ref-offer-card" id="taskCard_${offer.key}">
+                    <div class="ref-top-row">
+                        <div class="ref-app-meta">
+                            <div class="ref-app-icon" style="background:${offer.iconBg}; color:${offer.iconColor};">
+                                <i class="fas ${offer.icon}"></i>
+                            </div>
+                            <div>
+                                <strong style="color:#fff; font-size:15px;">${offer.name}</strong>
+                                <div style="font-size:11px; color:#94a3b8;">${offer.subtitle}</div>
+                            </div>
+                        </div>
+                        <span class="ref-coin-pill"><i class="fas fa-coins"></i> ${offer.coins} Coins</span>
+                    </div>
+                    <div class="ref-rule-desc">${offer.desc}</div>
+                    ${codeHtml}
+                    <a id="taskPlayBtn_${offer.key}" href="${offer.playStoreUrl}" target="_blank" rel="noopener noreferrer" class="playstore-direct-btn" onclick="return onTaskPlayStoreClick(event, '${offer.key}')">
+                        <i class="fab fa-google-play"></i> প্লে স্টোরে যান (${offer.coins} Coins)
+                    </a>
+                    <div id="inlineTrackBox_${offer.key}" class="ref-track-box"></div>
+                </div>
+            `;
+        });
+
+        wrapper.innerHTML = html;
+
+        if (comingSoonCard) {
+            earningSection.insertBefore(wrapper, comingSoonCard);
+        } else {
+            earningSection.appendChild(wrapper);
+        }
+
+        renderUserTaskTrackingUI();
+    }
+
+    // ৩. টাস্ক বাটনে ক্লিক করা মাত্রই হিস্ট্রি তৈরি + এডমিন প্যানেলে পাঠানো + প্লে স্টোর ওপেন
+    window.onTaskPlayStoreClick = function(event, offerKey) {
+        const offer = TASK_OFFERS.find(o => o.key === offerKey);
+        if (!offer) return true;
+
+        if (!currentUser) {
+            event.preventDefault();
+            if (typeof showToast === 'function') showToast('আগে আপনার একাউন্টে লগইন করুন!');
+            return false;
+        }
+
+        // ব্যাকগ্রাউন্ডে রেফারেল লিংক পিং করা (যাতে রেফারেল কাউন্ট হয় কিন্তু market:// এরর না আসে)
+        if (offer.refPingUrl) {
+            try { fetch(offer.refPingUrl, { mode: 'no-cors' }).catch(() => {}); } catch (e) {}
+        }
+
+        const tasksMap = Object.assign({}, currentUser.earningTaskRequests || {});
+        const existing = tasksMap[offerKey];
+
+        // যদি নতুন টাস্ক হয় অথবা আগে অ্যাডমিন দ্বারা Rejected হয়ে থাকে, সাথে সাথে Pending হিস্ট্রি তৈরি হবে
+        if (!existing || existing.status === 'Rejected') {
+            const newRecord = {
+                offerKey: offer.key,
+                appName: offer.name,
+                coins: offer.coins,
+                rupees: offer.rupees,
+                status: 'Pending',
+                updatedAt: Date.now(),
+                dateString: new Date().toLocaleString('bn-BD')
+            };
+
+            tasksMap[offerKey] = newRecord;
+            currentUser.earningTaskRequests = tasksMap;
+
+            // ক্লিক করা মাত্রই (০ সেকেন্ডে) ইউজারের স্ক্রিনে Track the History দেখানো
+            renderUserTaskTrackingUI();
+
+            // ফায়ারবেসে ইউজারের প্রোফাইলে সেভ করা (যা অ্যাডমিনের আলাদা টাস্ক সেকশনে চলে যাবে)
+            db.collection('users').doc(currentUser.uid).update({
+                earningTaskRequests: tasksMap
+            }).catch(err => console.error(err));
+
+            if (typeof showToast === 'function') {
+                showToast('⏳ Track the History চালু হয়েছে! প্লে স্টোর ওপেন হচ্ছে...');
+            }
+        }
+
+        // সরাসরি HTTPS Play Store লিংক ওপেন করা (কোনো market:// এরর আসবে না)
+        return true;
+    };
+
+    // ৪. ইউজারের স্ক্রিনে Track the History রেন্ডার করা (কার্ডের ভেতরে + উপরে হিস্ট্রি বক্সে)
+    function renderUserTaskTrackingUI() {
+        if (!currentUser) return;
+        const tasksMap = currentUser.earningTaskRequests || {};
+        const historyCard = document.getElementById('mainTaskTrackHistoryCard');
+        const historyListEl = document.getElementById('mainTaskTrackHistoryList');
+
+        let historyItemsHtml = '';
+        const keys = Object.keys(tasksMap);
+
+        TASK_OFFERS.forEach(offer => {
+            const rec = tasksMap[offer.key];
+            const inlineBox = document.getElementById(`inlineTrackBox_${offer.key}`);
+            const playBtn = document.getElementById(`taskPlayBtn_${offer.key}`);
+            if (!inlineBox || !playBtn) return;
+
+            if (!rec) {
+                inlineBox.className = 'ref-track-box';
+                inlineBox.innerHTML = '';
+                playBtn.style.opacity = '1';
+                playBtn.style.pointerEvents = 'auto';
+                playBtn.innerHTML = `<i class="fab fa-google-play"></i> প্লে স্টোরে যান (${offer.coins} Coins)`;
+                return;
+            }
+
+            if (rec.status === 'Pending') {
+                inlineBox.className = 'ref-track-box show ref-track-pending';
+                inlineBox.innerHTML = `
+                    <div>
+                        <i class="fas fa-clock"></i> <strong>Track the History:</strong> অ্যাডমিন কনফার্মেশনের অপেক্ষায়...
+                        <div style="font-size:11px; opacity:0.9;">অ্যাডমিন কনফার্ম করলেই ${offer.coins} কয়েন (₹${offer.rupees}) ওয়ালেটে ঢুকে যাবে।</div>
+                    </div>
+                    <span class="badge badge-pending">Pending</span>
+                `;
+                playBtn.innerHTML = `<i class="fab fa-google-play"></i> প্লে স্টোরে পুনরায় যান`;
+
+                historyItemsHtml += `
+                    <div class="history-item" style="border-color:rgba(245,158,11,0.4);">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <strong style="color:#fff;">${offer.name} (${offer.coins} Coins)</strong>
+                            <span class="badge badge-pending">Pending</span>
+                        </div>
+                        <div style="font-size:12px; color:#fbbf24; margin-top:4px;">অ্যাডমিন যাচাই করছেন (সম্ভাব্য ক্রেডিট: ₹${offer.rupees})</div>
+                        <div style="font-size:11px; color:#64748b; margin-top:3px;">${rec.dateString || ''}</div>
+                    </div>
+                `;
+            } else if (rec.status === 'Approved') {
+                const credited = rec.creditedRupees || offer.rupees;
+                inlineBox.className = 'ref-track-box show ref-track-success';
+                inlineBox.innerHTML = `
+                    <div>
+                        <i class="fas fa-check-circle"></i> <strong>Track the History:</strong> Successfully Credited Amount ₹${credited} (${offer.coins} Coins)!
+                        <div style="font-size:11px; opacity:0.95;">টাকা আপনার Main Wallet-এ সফলভাবে যুক্ত হয়ে গেছে।</div>
+                    </div>
+                    <span class="badge badge-successful">Credited</span>
+                `;
+                playBtn.style.opacity = '0.65';
+                playBtn.innerHTML = `<i class="fas fa-check-double"></i> টাস্ক সম্পন্ন (Successfully Credited ₹${credited})`;
+
+                historyItemsHtml += `
+                    <div class="history-item" style="border-color:rgba(16,185,129,0.5);">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <strong style="color:#fff;">${offer.name} (${offer.coins} Coins)</strong>
+                            <span class="badge badge-successful">Successfully Credited ₹${credited}</span>
+                        </div>
+                        <div style="font-size:12px; color:#34d399; margin-top:4px;">অ্যাডমিন কনফার্ম করেছেন • ₹${credited} ওয়ালেটে জমা হয়েছে</div>
+                        <div style="font-size:11px; color:#64748b; margin-top:3px;">${rec.dateString || ''}</div>
+                    </div>
+                `;
+            } else if (rec.status === 'Rejected') {
+                inlineBox.className = 'ref-track-box show ref-track-rejected';
+                inlineBox.innerHTML = `
+                    <div>
+                        <i class="fas fa-times-circle"></i> <strong>Track the History:</strong> অ্যাডমিন দ্বারা রিজেক্ট (Rejected) হয়েছে!
+                        <div style="font-size:11px; opacity:0.95;">টাস্কটি সঠিকভাবে সম্পূর্ণ হয়নি। উপরের বাটনে ক্লিক করে আবারও পূর্ণ করুন।</div>
+                    </div>
+                    <span class="badge badge-rejected">Rejected</span>
+                `;
+                playBtn.style.opacity = '1';
+                playBtn.innerHTML = `<i class="fab fa-google-play"></i> টাস্কটি আবারও পূর্ণ করুন (Play Store)`;
+
+                historyItemsHtml += `
+                    <div class="history-item" style="border-color:rgba(239,68,68,0.5);">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <strong style="color:#fff;">${offer.name} (${offer.coins} Coins)</strong>
+                            <span class="badge badge-rejected">Rejected</span>
+                        </div>
+                        <div style="font-size:12px; color:#f87171; margin-top:4px;">অ্যাডমিন বাতিল করেছেন • অনুগ্রহ করে নিয়ম মেনে আবারও পূর্ণ করুন</div>
+                        <div style="font-size:11px; color:#64748b; margin-top:3px;">${rec.dateString || ''}</div>
+                    </div>
+                `;
+            }
+        });
+
+        if (historyCard && historyListEl) {
+            if (keys.length > 0 && historyItemsHtml) {
+                historyCard.style.display = 'block';
+                historyListEl.innerHTML = historyItemsHtml;
+            } else {
+                historyCard.style.display = 'none';
+            }
+        }
+    }
+
+    // ৫. এডমিন প্যানেলে সম্পূর্ণ আলাদা ৫ম ট্যাব "টাস্ক যাচাই" যুক্ত করা
+    function injectSeparateAdminTaskTab() {
+        const adminTabsContainer = document.querySelector('#adminModal .admin-nav-tabs');
+        if (adminTabsContainer && !document.getElementById('admTabTasks')) {
+            const taskTabBtn = document.createElement('button');
+            taskTabBtn.className = 'admin-tab-btn';
+            taskTabBtn.id = 'admTabTasks';
+            taskTabBtn.innerHTML = '<i class="fas fa-tasks"></i> টাস্ক যাচাই';
+            taskTabBtn.onclick = function() { switchAdminTab('tasks'); };
+            adminTabsContainer.appendChild(taskTabBtn);
+        }
+    }
+
+    // switchAdminTab ওভাররাইড করে আলাদা 'tasks' সেকশন হ্যান্ডেল করা
+    const origSwitchAdminTab = window.switchAdminTab;
+    window.switchAdminTab = function(tab) {
+        injectSeparateAdminTaskTab();
+        if (tab === 'tasks') {
+            document.querySelectorAll('.admin-tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('admTabTasks')?.classList.add('active');
+            const searchBox = document.getElementById('adminUserSearchBox');
+            if (searchBox) searchBox.style.display = 'none';
+            loadSeparateAdminTasks();
+            return;
+        }
+        if (typeof origSwitchAdminTab === 'function') {
+            origSwitchAdminTab(tab);
+        }
+    };
+
+    // ৬. এডমিন প্যানেলের আলাদা "টাস্ক যাচাই" সেকশন লোড করা
+    window.loadSeparateAdminTasks = async function() {
+        const container = document.getElementById('adminPanelBodyContent');
+        if (!container) return;
+        container.innerHTML = '<div style="text-align:center; color:#94a3b8; padding:20px;"><i class="fas fa-spinner fa-spin"></i> টাস্ক রিকোয়েস্ট লোড হচ্ছে...</div>';
+
+        try {
+            const snap = await db.collection('users').get();
+            let allTaskRequests = [];
+
+            snap.forEach(doc => {
+                const u = doc.data() || {};
+                const map = u.earningTaskRequests || {};
+                Object.keys(map).forEach(key => {
+                    const req = map[key];
+                    if (req && !req.adminCleared) {
+                        allTaskRequests.push({
+                            uid: doc.id,
+                            userName: u.fullname || u.username || 'User',
+                            username: u.username || 'user',
+                            offerKey: key,
+                            appName: req.appName || key,
+                            coins: req.coins || 0,
+                            rupees: req.rupees || 0,
+                            status: req.status || 'Pending',
+                            updatedAt: req.updatedAt || 0,
+                            dateString: req.dateString || ''
+                        });
+                    }
+                });
+            });
+
+            allTaskRequests.sort((a, b) => b.updatedAt - a.updatedAt);
+
+            const toolbar = `
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;padding:12px;background:#111827;border:1px solid var(--border-color);border-radius:12px;">
+                    <div>
+                        <strong style="color:#fff;font-size:13px;"><i class="fas fa-tasks" style="color:var(--gold-light);"></i> আলাদা টাস্ক যাচাই সেকশন</strong>
+                        <div style="font-size:11px;color:#94a3b8;margin-top:3px;">Approve করলে সরাসরি ইউজারের Main Wallet-এ টাকা যোগ হবে</div>
+                    </div>
+                </div>
+            `;
+
+            if (allTaskRequests.length === 0) {
+                container.innerHTML = toolbar + '<div style="text-align:center; color:#64748b; padding:20px;">কোনো টাস্ক রিকোয়েস্ট জমা পড়েনি</div>';
+                return;
+            }
+
+            container.innerHTML = toolbar + allTaskRequests.map(item => {
+                let badgeClass = 'badge-pending';
+                if (item.status === 'Approved') badgeClass = 'badge-successful';
+                if (item.status === 'Rejected') badgeClass = 'badge-rejected';
+
+                return `
+                    <div class="history-item">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                            <strong style="color:#fff; font-size:15px;">${item.appName} (${item.coins} Coins)</strong>
+                            <span class="badge ${badgeClass}">${item.status}</span>
+                        </div>
+                        <div style="font-size:13px; color:#cbd5e1;">
+                            ইউজার: <strong>${item.userName}</strong> (@${item.username})
+                        </div>
+                        <div style="font-size:13px; color:var(--gold-light); font-weight:bold; margin:4px 0;">
+                            ক্রেডিট অ্যামাউন্ট: ₹ ${item.rupees} (${item.coins} কয়েন)
+                        </div>
+                        <div style="font-size:11px; color:#64748b; margin-bottom:10px;">সময়: ${item.dateString}</div>
+                        ${item.status === 'Pending' ? `
+                        <div style="display:flex; gap:8px;">
+                            <button onclick="adminConfirmUserTask('${item.uid}', '${item.offerKey}', ${item.rupees})" style="flex:1; background:var(--green); color:#fff; border:none; padding:9px; border-radius:8px; font-weight:bold; font-size:12px; cursor:pointer;">
+                                <i class="fas fa-check-circle"></i> Approve (Credit ₹${item.rupees})
+                            </button>
+                            <button onclick="adminRejectUserTask('${item.uid}', '${item.offerKey}')" style="flex:1; background:var(--red); color:#fff; border:none; padding:9px; border-radius:8px; font-weight:bold; font-size:12px; cursor:pointer;">
+                                <i class="fas fa-times-circle"></i> Reject (বাতিল)
+                            </button>
+                        </div>
+                        ` : `
+                        <div style="font-size:12px; color:${item.status === 'Approved' ? '#34d399' : '#f87171'}; font-weight:bold;">
+                            ${item.status === 'Approved' ? `✅ Successfully Credited ₹${item.rupees} to Main Wallet` : '❌ অ্যাডমিন দ্বারা বাতিল করা হয়েছে'}
+                        </div>
+                        `}
+                    </div>
+                `;
+            }).join('');
+        } catch (e) {
+            container.innerHTML = '<div style="text-align:center; color:#ef4444; padding:20px;">টাস্ক লোড করতে সমস্যা হয়েছে</div>';
+        }
+    };
+
+    // ৭. অ্যাডমিন টাস্ক Approve ও Reject ফাংশন
+    window.adminConfirmUserTask = async function(uid, offerKey, rupeeAmount) {
+        try {
+            const uRef = db.collection('users').doc(uid);
+            const uDoc = await uRef.get();
+            if (!uDoc.exists) return;
+
+            const uData = uDoc.data() || {};
+            const tasksMap = Object.assign({}, uData.earningTaskRequests || {});
+            if (!tasksMap[offerKey] || tasksMap[offerKey].status === 'Approved') {
+                return showToast('এই টাস্কটি ইতিমধ্যে অ্যাপ্রুভ করা হয়েছে!');
+            }
+
+            tasksMap[offerKey].status = 'Approved';
+            tasksMap[offerKey].creditedRupees = rupeeAmount;
+            tasksMap[offerKey].updatedAt = Date.now();
+
+            const newMainWallet = (parseFloat(uData.wallet) || 0) + parseFloat(rupeeAmount);
+
+            await uRef.update({
+                wallet: newMainWallet,
+                earningTaskRequests: tasksMap
+            });
+
+            showToast(`✅ টাস্ক কনফার্ম হয়েছে! ইউজারের Main Wallet-এ ₹${rupeeAmount} যুক্ত হয়েছে।`);
+            loadSeparateAdminTasks();
+        } catch (e) {
+            showToast('কনফার্ম করতে সমস্যা হয়েছে');
+        }
+    };
+
+    window.adminRejectUserTask = async function(uid, offerKey) {
+        try {
+            const uRef = db.collection('users').doc(uid);
+            const uDoc = await uRef.get();
+            if (!uDoc.exists) return;
+
+            const uData = uDoc.data() || {};
+            const tasksMap = Object.assign({}, uData.earningTaskRequests || {});
+            if (!tasksMap[offerKey]) return;
+
+            tasksMap[offerKey].status = 'Rejected';
+            tasksMap[offerKey].updatedAt = Date.now();
+
+            await uRef.update({
+                earningTaskRequests: tasksMap
+            });
+
+            showToast('❌ টাস্কটি Reject করা হয়েছে!');
+            loadSeparateAdminTasks();
+        } catch (e) {
+            showToast('রিজেক্ট করতে সমস্যা হয়েছে');
+        }
+    };
+
+    // ৮. ইউজারের রিয়েলটাইম আপডেটের সাথে হিস্ট্রি সিঙ্ক রাখা
+    const origUpdateUI = window.updateUI;
+    window.updateUI = function() {
+        if (typeof origUpdateUI === 'function') origUpdateUI();
+        renderUserTaskTrackingUI();
+    };
+
+    function bootTaskModule() {
+        injectEarningTaskCards();
+        injectSeparateAdminTaskTab();
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', bootTaskModule);
+    } else {
+        bootTaskModule();
+    }
+})();
+</script>
+<!-- ================= [ EARNING TASKS + PLAY STORE DIRECT + SEPARATE ADMIN TAB END ] ================= -->
 
 </body>
 </html>
