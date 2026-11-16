@@ -3327,6 +3327,341 @@
 })();
 </script>
 <!-- ================= [ EARNING TASKS + SKETCHWARE NATIVE PLAY STORE LAUNCHER END ] ================= -->
+<!-- ================= [ PREMIUM APP SHUTDOWN / CLOSURE NOTICE SHORTCUT START ] ================= -->
+<style>
+    /* নন-এডমিন ইউজারদের জন্য ফুল-স্ক্রিন প্রিমিয়াম নোটিশ ওভারলে */
+    #appGlobalShutdownOverlay {
+        position: fixed;
+        inset: 0;
+        background: radial-gradient(circle at 50% 15%, #1e293b 0%, #090d16 80%);
+        z-index: 9999999;
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        text-align: center;
+        backdrop-filter: blur(12px);
+        overflow-y: auto;
+    }
+    #appGlobalShutdownOverlay.show {
+        display: flex;
+        animation: shutdownFadeIn 0.35s ease-out;
+    }
+    @keyframes shutdownFadeIn {
+        from { opacity: 0; transform: scale(0.96); }
+        to { opacity: 1; transform: scale(1); }
+    }
+
+    .shutdown-premium-card {
+        background: linear-gradient(165deg, #161f33 0%, #0e1422 100%);
+        border: 1.5px solid rgba(251, 191, 36, 0.45);
+        border-radius: 28px;
+        padding: 34px 24px 28px;
+        max-width: 410px;
+        width: 100%;
+        position: relative;
+        box-shadow: 0 25px 60px rgba(0, 0, 0, 0.75), 0 0 35px rgba(251, 191, 36, 0.12);
+        overflow: hidden;
+    }
+    .shutdown-premium-card::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #ef4444, #fbbf24, #10b981);
+    }
+
+    .shutdown-badge-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(239, 68, 68, 0.14);
+        border: 1px solid rgba(239, 68, 68, 0.4);
+        color: #f87171;
+        padding: 5px 14px;
+        border-radius: 30px;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        margin-bottom: 18px;
+    }
+
+    .shutdown-icon-wrapper {
+        width: 82px;
+        height: 82px;
+        border-radius: 24px;
+        background: linear-gradient(135deg, rgba(239, 68, 68, 0.18), rgba(251, 191, 36, 0.15));
+        border: 1.5px solid rgba(251, 191, 36, 0.35);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 20px;
+        position: relative;
+        box-shadow: 0 10px 25px rgba(239, 68, 68, 0.2);
+    }
+    .shutdown-icon-wrapper i.main-lock {
+        font-size: 36px;
+        color: #fbbf24;
+    }
+    .shutdown-icon-wrapper .sub-bank-badge {
+        position: absolute;
+        bottom: -6px;
+        right: -6px;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: #10b981;
+        color: #0b0f19;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        border: 2px solid #151c2c;
+    }
+
+    .shutdown-main-heading {
+        font-size: 22px;
+        font-weight: 800;
+        color: #fbbf24;
+        margin-bottom: 14px;
+        letter-spacing: 0.3px;
+    }
+
+    .shutdown-notice-text {
+        background: rgba(11, 15, 25, 0.65);
+        border: 1px solid rgba(255, 255, 255, 0.07);
+        border-radius: 18px;
+        padding: 18px 16px;
+        color: #f8fafc;
+        font-size: 15.5px;
+        line-height: 1.75;
+        font-weight: 600;
+        margin-bottom: 18px;
+    }
+
+    /* ইউজারের ওয়ালেট ব্যালেন্স প্রিভিউ বক্স */
+    .shutdown-wallet-assurance {
+        background: linear-gradient(135deg, rgba(16, 185, 129, 0.14), rgba(5, 150, 105, 0.08));
+        border: 1px solid rgba(16, 185, 129, 0.4);
+        border-radius: 16px;
+        padding: 14px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        text-align: left;
+        margin-bottom: 18px;
+    }
+
+    .shutdown-footer-brand {
+        font-size: 12px;
+        color: #94a3b8;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        padding-top: 14px;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    /* এডমিন প্যানেলের ভেতরের শাটডাউন কন্ট্রোল কার্ড */
+    .admin-shutdown-control-card {
+        background: #0f1523;
+        border: 1.5px solid var(--border-color);
+        border-radius: 16px;
+        padding: 14px 16px;
+        margin-bottom: 14px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+    }
+    .shutdown-toggle-btn {
+        border: none;
+        padding: 10px 16px;
+        border-radius: 12px;
+        font-weight: 800;
+        font-size: 13px;
+        cursor: pointer;
+        white-space: nowrap;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .shutdown-toggle-btn.off {
+        background: #ef4444;
+        color: #fff;
+        box-shadow: 0 4px 14px rgba(239, 68, 68, 0.4);
+    }
+    .shutdown-toggle-btn.on {
+        background: #10b981;
+        color: #fff;
+        box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);
+    }
+</style>
+
+<!-- নন-এডমিন ইউজারদের জন্য প্রিমিয়াম নোটিশ স্ক্রিন -->
+<div id="appGlobalShutdownOverlay">
+    <div class="shutdown-premium-card">
+        <div class="shutdown-badge-pill">
+            <i class="fas fa-circle" style="font-size: 8px;"></i> অফিসিয়াল বিজ্ঞপ্তি
+        </div>
+
+        <div class="shutdown-icon-wrapper">
+            <i class="fas fa-ban main-lock"></i>
+            <span class="sub-bank-badge"><i class="fas fa-university"></i></span>
+        </div>
+
+        <h2 class="shutdown-main-heading">সার্ভিস বন্ধের জরুরি ঘোষণা</h2>
+
+        <div class="shutdown-notice-text">
+            অ্যাপ এর সমস্ত কার্যকলাপ বন্ধ করে দেওয়া হয়েছে। তাই আপনি আর প্রবেশ করতে পারবেন না আপনাদের নির্ধারিত টাকা আপনাদের ওয়ালেট থেকে আপনাদের ব্যাংকে দিয়ে দেওয়া হবে।
+        </div>
+
+        <!-- ইউজারের বর্তমান ওয়ালেট ব্যালেন্স ও ব্যাংক ট্রান্সফার নিশ্চয়তা -->
+        <div id="shutdownUserWalletPreview" class="shutdown-wallet-assurance" style="display: none;">
+            <div>
+                <div style="font-size: 11px; color: #6ee7b7; font-weight: 700;">আপনার সংরক্ষিত ওয়ালেট ব্যালেন্স</div>
+                <div style="font-size: 20px; font-weight: 800; color: #ffffff; margin-top: 2px;">₹ <span id="shutdownSavedWalletAmount">0</span></div>
+            </div>
+            <div style="text-align: right;">
+                <span style="background: rgba(16, 185, 129, 0.2); color: #34d399; padding: 4px 10px; border-radius: 10px; font-size: 11px; font-weight: bold;">
+                    <i class="fas fa-shield-alt"></i> নিরাপদ ট্রান্সফার
+                </span>
+            </div>
+        </div>
+
+        <div class="shutdown-footer-brand">
+            <i class="fas fa-tv" style="color: #fbbf24;"></i>
+            <span>স্টার টিভি পেমেন্ট • স্বয়ংক্রিয় ব্যাংক সেটেলমেন্ট সিস্টেম</span>
+        </div>
+    </div>
+</div>
+
+<script>
+(function initAppShutdownSystem() {
+    let isAppShutdownActive = false;
+
+    // ১. এডমিন প্যানেল মডালের ভেতরে শাটডাউন বাটন ইনজেক্ট করা
+    function injectAdminShutdownControl() {
+        const adminModalBody = document.querySelector('#adminModal .modal-body');
+        if (!adminModalBody || document.getElementById('adminShutdownControlBox')) return;
+
+        const box = document.createElement('div');
+        box.id = 'adminShutdownControlBox';
+        box.className = 'admin-shutdown-control-card';
+        adminModalBody.insertBefore(box, adminModalBody.firstChild);
+        updateShutdownUI();
+    }
+
+    // ২. শাটডাউন অবস্থা অনুযায়ী ইউজার ও এডমিন UI আপডেট করা
+    function updateShutdownUI() {
+        const overlay = document.getElementById('appGlobalShutdownOverlay');
+        const hasUser = (typeof currentUser !== 'undefined' && currentUser);
+        const isAdmin = !!(hasUser && currentUser.isAdmin);
+
+        // ইউজারের ওয়ালেট ব্যালেন্স দেখানো (যদি লগইন অবস্থায় থাকে)
+        const walletPreview = document.getElementById('shutdownUserWalletPreview');
+        const walletAmtEl = document.getElementById('shutdownSavedWalletAmount');
+        if (walletPreview && walletAmtEl) {
+            if (hasUser && !isAdmin) {
+                const totalBal = (parseFloat(currentUser.wallet) || 0) + (parseFloat(currentUser.affiliateWallet) || 0);
+                walletAmtEl.textContent = totalBal;
+                walletPreview.style.display = 'flex';
+            } else {
+                walletPreview.style.display = 'none';
+            }
+        }
+
+        // এডমিন ছাড়া বাকি সবার জন্য নোটিশ স্ক্রিন দেখানো বা লুকানো
+        if (overlay) {
+            if (isAppShutdownActive && !isAdmin) {
+                overlay.classList.add('show');
+            } else {
+                overlay.classList.remove('show');
+            }
+        }
+
+        // এডমিন প্যানেলের বাটন আপডেট করা
+        const box = document.getElementById('adminShutdownControlBox');
+        if (box) {
+            if (isAppShutdownActive) {
+                box.style.borderColor = '#ef4444';
+                box.innerHTML = `
+                    <div>
+                        <strong style="color: #f87171; font-size: 14px;"><i class="fas fa-exclamation-triangle"></i> অ্যাপ শাটডাউন চালু আছে</strong>
+                        <div style="font-size: 11px; color: #cbd5e1; margin-top: 3px;">এডমিন ছাড়া সবাই বন্ধের নোটিশ দেখছে</div>
+                    </div>
+                    <button type="button" class="shutdown-toggle-btn on" onclick="toggleGlobalAppShutdown(false)">
+                        <i class="fas fa-play"></i> অ্যাপ চালু করুন
+                    </button>
+                `;
+            } else {
+                box.style.borderColor = 'var(--border-color)';
+                box.innerHTML = `
+                    <div>
+                        <strong style="color: #fff; font-size: 14px;"><i class="fas fa-power-off" style="color:#ef4444;"></i> অ্যাপ শাটডাউন কন্ট্রোল</strong>
+                        <div style="font-size: 11px; color: #94a3b8; margin-top: 3px;">ক্লিক করলে এডমিন ছাড়া সবার অ্যাপ বন্ধ হবে</div>
+                    </div>
+                    <button type="button" class="shutdown-toggle-btn off" onclick="toggleGlobalAppShutdown(true)">
+                        <i class="fas fa-power-off"></i> Shutdown
+                    </button>
+                `;
+            }
+        }
+    }
+
+    // ৩. ফায়ারবেসে শাটডাউন স্ট্যাটাস সেভ করার ফাংশন
+    window.toggleGlobalAppShutdown = async function(shouldShutdown) {
+        if (!currentUser || !currentUser.isAdmin) {
+            if (typeof showToast === 'function') showToast('শুধুমাত্র এডমিন এটি পরিবর্তন করতে পারবেন!');
+            return;
+        }
+        try {
+            await db.collection('appSettings').doc('globalStatus').set({
+                isShutdown: shouldShutdown,
+                updatedAt: Date.now(),
+                updatedBy: currentUser.uid
+            }, { merge: true });
+
+            if (typeof showToast === 'function') {
+                showToast(shouldShutdown ? '🔴 অ্যাপ শাটডাউন চালু করা হয়েছে!' : '🟢 অ্যাপ পুনরায় সবার জন্য চালু করা হয়েছে!');
+            }
+        } catch (err) {
+            if (typeof showToast === 'function') showToast('সেটিংস আপডেট করতে সমস্যা হয়েছে');
+        }
+    };
+
+    // ৪. রিয়েলটাইম ফায়ারবেস লিসেনার
+    function startShutdownListener() {
+        if (typeof db === 'undefined') return;
+        db.collection('appSettings').doc('globalStatus').onSnapshot(doc => {
+            const data = doc.exists ? doc.data() : {};
+            isAppShutdownActive = !!data.isShutdown;
+            updateShutdownUI();
+        }, () => {});
+    }
+
+    const prevUpdateUI = window.updateUI;
+    window.updateUI = function() {
+        if (typeof prevUpdateUI === 'function') prevUpdateUI();
+        updateShutdownUI();
+    };
+
+    function bootShutdownShortcut() {
+        injectAdminShutdownControl();
+        startShutdownListener();
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', bootShutdownShortcut);
+    } else {
+        bootShutdownShortcut();
+    }
+})();
+</script>
+<!-- ================= [ PREMIUM APP SHUTDOWN / CLOSURE NOTICE SHORTCUT END ] ================= -->
 
 </body>
 </html>
